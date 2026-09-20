@@ -1,0 +1,7 @@
+Fieldkit — Minecraft 1.21.1 / NeoForge 21.1.250+
+Merge server/ into the server instance, and client/ into each client instance. For single player use server/ in your local instance.
+Remove older WYSICRAFT and fieldkit JARs before installing. Both sides require WYSICRAFT 1.1.0.
+Do not also install an older loose fieldkit.wysicraft pack. Restart after adding/replacing JARs.
+Open /fieldkit.open; close /fieldkit.close.
+Standard scripts need no additional scripting mod.
+Project JARs contain UI data, not generated Java classes. Client JARs omit server script source/actions. The editable .wysicraftproj is saved separately.

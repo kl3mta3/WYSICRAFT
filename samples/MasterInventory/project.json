@@ -1,0 +1,13 @@
+{
+  "defaultUi": "main",
+  "version": "1.0.0",
+  "ui": [
+    "main"
+  ],
+  "runtimeVersion": "1.2.1",
+  "name": "MasterInventory",
+  "dependencies": [
+    "kubejs"
+  ],
+  "id": "masterinventory"
+}

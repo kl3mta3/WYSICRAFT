@@ -1,0 +1,269 @@
+using System.IO;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
+using System.Windows.Media;
+using System.Windows.Media.Effects;
+using System.Windows.Media.Imaging;
+using Microsoft.Win32;
+using Wysicraft.Models;
+using Wysicraft.Packaging;
+using Element = Wysicraft.Models.Element;
+namespace Wysicraft.Designer;
+
+public partial class MainWindow
+{
+    bool syncingLayers;
+    void VerifyAppearanceTools()
+    {
+        var original = Json.Clone(project);
+        try
+        {
+            var button = ui.Elements.First(e => e.Type == "button");
+            var label = ui.Elements.First(e => e.Type == "label");
+            label.Background = "#123456"; label.BorderColor = "#ABCDEF"; label.BorderWidth = 2; label.TextShadow = true; label.ShadowOffsetX = 3; label.ShadowBlur = 4;
+            if (RenderControl(label, true, null) is not Border frame || frame.Background is not SolidColorBrush fill || fill.Color != Color.FromRgb(0x12, 0x34, 0x56) || frame.BorderThickness.Left != 2 * Zoom || frame.Child is not TextBlock labelText || labelText.Effect is not DropShadowEffect shadow || shadow.BlurRadius != 4 * Zoom) throw new InvalidOperationException("Label fill, border or shadow failed");
+            label.FillEnabled = false;
+            if (FrameBrush(label) != Brushes.Transparent) throw new InvalidOperationException("Disabled fill was not transparent");
+            label.FillEnabled = true;
+            SelectCanvasElement(button.Id, System.Windows.Input.ModifierKeys.None);
+            SelectCanvasElement(label.Id, System.Windows.Input.ModifierKeys.Shift);
+            if (selected.Count != 2 || !selected.Contains(button.Id) || !selected.Contains(label.Id)) throw new InvalidOperationException("Shift multi-selection failed");
+            button.Events["click"].Client.Actions.Add(new VisualAction { Type = "set_text", Target = label.Id, Value = "Copied link" });
+            var copied = Json.Write(ui.Elements.Where(e => selected.Contains(e.Id)).ToList());
+            InsertCopies(Json.Read<List<Element>>(copied));
+            var pasted = ui.Elements.Where(e => selected.Contains(e.Id)).ToList();
+            if (pasted.Count != 2 || pasted.First(e => e.Type == "button").Events["click"].Client.Actions.Last().Target != pasted.First(e => e.Type == "label").Id) throw new InvalidOperationException("Multi-element paste did not remap action targets");
+            selected.Clear(); selected.Add(button.Id); Draw();
+            if (!Layers.SelectedItems.Cast<ListBoxItem>().Any(item => Equals(item.Tag, button.Id))) throw new InvalidOperationException("Layers selection not synchronized");
+            int count = ui.Elements.Count; Duplicate();
+            if (ui.Elements.Count != count + 1 || ui.Elements.Select(e => e.Id).Distinct().Count() != ui.Elements.Count) throw new InvalidOperationException("Duplicate failed");
+            button.CornerRadius = 7; button.Bold = true; button.Italic = true; button.Font = "minecraft:uniform";
+            var pixels = new byte[1300 * 1300 * 4]; new Random(42).NextBytes(pixels);
+            var png = new PngBitmapEncoder(); png.Frames.Add(BitmapFrame.Create(BitmapSource.Create(1300, 1300, 96, 96, PixelFormats.Bgra32, null, pixels, 1300 * 4)));
+            using var data = new MemoryStream(); png.Save(data); project.Assets["assets/textures/smoke.png"] = data.ToArray(); button.Texture = project.Manifest.Id + ":smoke.png";
+            if (data.Length <= 4 * 1024 * 1024) throw new InvalidOperationException("Large-image fixture is too small");
+            string packPath = Path.Combine(Path.GetTempPath(), "wysicraft-image-" + Guid.NewGuid() + ".wysicraft");
+            try { ProjectStore.Export(project, packPath); if (!ProjectStore.Load(packPath).Assets[Wysicraft.Core.TextureAssets.Path(project.Manifest.Id, "smoke.png")].SequenceEqual(data.ToArray())) throw new InvalidOperationException("Large image was not preserved"); }
+            finally { if (File.Exists(packPath)) File.Delete(packPath); }
+            if (SkinBrush(button) is not ImageBrush || RenderControl(button, true, null) is not Button view || view.Content is not TextBlock text || text.FontWeight != FontWeights.Bold) throw new InvalidOperationException("Skin/font preview failed");
+            if (!ColorPicker.TryColor("#8044AAEE", out var color) || ColorPicker.ToHex(color) != "#8044AAEE") throw new InvalidOperationException("Color hex conversion failed");
+        }
+        finally { project = original; ui = project.Screens.First(s => s.Id == ui.Id); selected.Clear(); dirty = false; history.Clear(); Draw(); RefreshInspector(); }
+    }
+    void ColorField(StackPanel panel, string label, object obj, string name)
+    {
+        var property = obj.GetType().GetProperty(name)!;
+        var row = new DockPanel(); row.Children.Add(new TextBlock { Text = label, Width = 90, Margin = new Thickness(4), VerticalAlignment = VerticalAlignment.Center });
+        string current = (string)property.GetValue(obj)!;
+        var hex = new TextBox { Text = current, MinWidth = 85, ToolTip = "Type #RRGGBB or #AARRGGBB" };
+        var selector = new Button { Content = "◉", Width = 32, Padding = new Thickness(2), Background = Brush(current), ToolTip = "Open color wheel" };
+        DockPanel.SetDock(selector, Dock.Right); row.Children.Add(selector); row.Children.Add(hex); panel.Children.Add(row);
+        bool transaction = false, updating = false;
+        void Apply(string color)
+        {
+            if (color == current) return;
+            if (!transaction) { Change(); transaction = true; }
+            property.SetValue(obj, color); current = color; selector.Background = Brush(color); Draw();
+        }
+        hex.TextChanged += (_, _) => { if (updating) return; if (ColorPicker.TryColor(hex.Text, out var color)) { hex.BorderBrush = Brushes.Gray; Apply(ColorPicker.ToHex(color)); } else hex.BorderBrush = Brushes.IndianRed; };
+        hex.LostKeyboardFocus += (_, _) => { updating = true; hex.Text = current; updating = false; transaction = false; };
+        selector.Click += (_, _) =>
+        {
+            transaction = false;
+            var picker = new ColorPicker(this, current, color => { Apply(color); updating = true; hex.Text = color; updating = false; }); picker.ShowDialog(); transaction = false;
+        };
+    }
+    void InitializeLayers()
+    {
+        Layers.SelectionChanged += (_, _) =>
+        {
+            if (syncingLayers) return;
+            selected.Clear(); foreach (ListBoxItem item in Layers.SelectedItems) foreach(string id in LayerRowIds((string)item.Tag)) selected.Add(id);
+            Draw(); RefreshInspector();
+        };
+        InitializeLayerDragging();
+        LayerUp.Click += (_, _) => MoveLayers(1);
+        LayerDown.Click += (_, _) => MoveLayers(-1);
+        LayerDuplicate.Click += (_, _) => Duplicate();
+    }
+    void RefreshLayers() => RefreshLayerRows();
+    ContextMenu ElementMenu(Element element)
+    {
+        var menu = new ContextMenu();
+        // Select the right-clicked element when executing an action. Keeping its
+        // visual alive while the menu opens avoids losing the WPF placement target.
+        void SelectTarget() { if (!selected.Contains(element.Id)) { selected.Clear(); selected.Add(element.Id); } }
+        foreach (var (label, action) in new (string, System.Action)[] {
+            ("Select", () => { selected.Clear(); selected.Add(element.Id); Draw(); RefreshInspector(); }),
+            ("Group selected", GroupSelected), ("Ungroup", UngroupSelected), ("Duplicate", Duplicate), ("Bring forward", () => MoveLayers(1)), ("Send backward", () => MoveLayers(-1)),
+            (element.Visible ? "Hide" : "Show", () => { Change(); element.Visible = !element.Visible; Draw(); RefreshInspector(); }),
+            ("Delete", Delete) })
+        {
+            var item = new MenuItem { Header = label };
+            item.Click += (_, _) => Guard(() => { SelectTarget(); action(); }); menu.Items.Add(item);
+        }
+        return menu;
+    }
+    void MoveLayers(int direction)
+    {
+        if(selected.Count==0)return;
+        var front=ui.Elements.AsEnumerable().Reverse().ToList();
+        int index=direction>0?front.FindIndex(e=>selected.Contains(e.Id))-1:front.FindLastIndex(e=>selected.Contains(e.Id))+1;
+        if(index<0 || index>=front.Count)return;
+        ReorderLayerDrop(selected.ToArray(),front[index].Id,direction<0);
+    }
+    void Duplicate()
+    {
+        InsertCopies(ui.Elements.Where(e => selected.Contains(e.Id)).ToList());
+    }
+    void InsertCopies(List<Element> originals)
+    {
+        if (originals.Count == 0) return;
+        Change(); var clones = originals.Select(Json.Clone).ToList(); var ids = new Dictionary<string, string>();
+        var groups=clones.Where(e=>e.LayerGroup.Length>0).Select(e=>e.LayerGroup).Distinct().ToDictionary(g=>g,g=>UniqueLayerGroup(g+" copy"));
+        foreach(var clone in clones) if(groups.TryGetValue(clone.LayerGroup,out var group)) clone.LayerGroup=group;
+        foreach (var clone in clones) { string old = clone.Id; clone.Id = Unique(old); ids.Add(old, clone.Id); ui.Elements.Add(clone); }
+        foreach (var clone in clones)
+        {
+            clone.Bounds.X += Math.Max(1, project.Manifest.GridSize); clone.Bounds.Y += Math.Max(1, project.Manifest.GridSize);
+            if (ids.TryGetValue(clone.Parent, out var parent)) clone.Parent = parent;
+            foreach (var ev in clone.Events.Values) foreach (var handler in new[] { ev.Client, ev.Server }) foreach (var action in handler.Actions)
+                if (action.Type is "set_text" or "set_visible" or "set_enabled" or "set_value" or "change_texture" && ids.TryGetValue(action.Target, out var target)) action.Target = target;
+        }
+        selected.Clear(); foreach (var clone in clones) selected.Add(clone.Id);
+        Draw(); RefreshInspector();
+    }
+    void BuildAppearance(Element e)
+    {
+        Heading(Properties, "Appearance"); Field(Properties, "Text", e, "Text");
+        Field(Properties, "Fill enabled", e, "FillEnabled");
+        Field(Properties, "Text color", e, "Foreground"); Field(Properties, "Fill color", e, "Background");
+        var colors = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(4) };
+        foreach (string color in new[] { "#40464F", "#176B91", "#2D8156", "#A84646", "#BE842B", "#FFFFFF", "#000000" })
+        {
+            var swatch = new Button { Width = 27, Height = 22, Background = Brush(color), ToolTip = "Fill " + color, Padding = new Thickness(0) };
+            swatch.Click += (_, _) => { Change(); e.Background = color; e.Texture = ""; Draw(); RefreshInspector(); }; colors.Children.Add(swatch);
+        }
+        Properties.Children.Add(colors);
+        Field(Properties, "Skin image", e, "Texture");
+        var buttons = new StackPanel { Orientation = Orientation.Horizontal };
+        var browse = new Button { Content = "Choose PNG…" }; browse.Click += (_, _) => Guard(() => AssignSkin(e));
+        var clear = new Button { Content = "Use color only" }; clear.Click += (_, _) => { Change(); e.Texture = ""; Draw(); RefreshInspector(); };
+        buttons.Children.Add(browse); buttons.Children.Add(clear); Properties.Children.Add(buttons);
+        Properties.Children.Add(new TextBlock { Text = "An assigned image replaces the fill. Transparent pixels reveal the canvas.", Margin = new Thickness(4), TextWrapping = TextWrapping.Wrap, Foreground = Brushes.LightGray });
+        Field(Properties, "Opacity", e, "Opacity");
+        Heading(Properties, "Corners");
+        var radiusLabel = new TextBlock { Text = $"Radius: {e.CornerRadius:0} px", Margin = new Thickness(4) };
+        var radius = new Slider { Minimum = 0, Maximum = 128, Value = e.CornerRadius, TickFrequency = 1, IsSnapToTickEnabled = true, Margin = new Thickness(4), ToolTip = "Corner radius in Minecraft pixels; clamped to half the control size." };
+        bool changing = false;
+        radius.ValueChanged += (_, _) => { if (!changing) { Change(); changing = true; } e.CornerRadius = radius.Value; radiusLabel.Text = $"Radius: {e.CornerRadius:0} px"; Draw(); };
+        radius.AddHandler(Thumb.DragCompletedEvent, new DragCompletedEventHandler((_, _) => changing = false));
+        radius.LostKeyboardFocus += (_, _) => changing = false;
+        Properties.Children.Add(radiusLabel); Properties.Children.Add(radius);
+        Heading(Properties, "Border");
+        Field(Properties, "Border color", e, "BorderColor");
+        NumericSlider(Properties, "Width (px)", e.BorderWidth, 0, 32, value => e.BorderWidth = value);
+        Heading(Properties, "Font");
+        var font = new ComboBox { IsEditable = true, ItemsSource = new[] { "minecraft:default", "minecraft:uniform", "minecraft:alt" }, Text = e.Font };
+        void SetFont(string? name) { if (name == e.Font || name == null || !Wysicraft.Core.Validation.Resource(name)) return; Change(); e.Font = name; Draw(); }
+        font.SelectionChanged += (_, _) => SetFont(font.SelectedItem as string);
+        font.LostKeyboardFocus += (_, _) => SetFont(font.Text);
+        Properties.Children.Add(font);
+        Field(Properties, "Size scale", e, "FontScale");
+        foreach (string property in new[] { "Bold", "Italic", "Underline" }) Field(Properties, property, e, property);
+        var align = new ComboBox { ItemsSource = new[] { "left", "center", "right" }, SelectedItem = e.Alignment };
+        align.SelectionChanged += (_, _) => { if (align.SelectedItem is string value) { Change(); e.Alignment = value; Draw(); } }; Properties.Children.Add(align);
+        Properties.Children.Add(new TextBlock { Text = "Fonts use Minecraft resource IDs. Desktop preview approximates their glyphs; custom fonts need a matching Minecraft resource pack.", TextWrapping = TextWrapping.Wrap, Margin = new Thickness(4), Foreground = Brushes.LightGray });
+        Heading(Properties, "Text shadow");
+        Field(Properties, "Enabled", e, "TextShadow"); Field(Properties, "Shadow color", e, "ShadowColor");
+        NumericSlider(Properties, "Opacity", e.ShadowOpacity, 0, 1, value => e.ShadowOpacity = value, .05);
+        NumericSlider(Properties, "Offset X (px)", e.ShadowOffsetX, -64, 64, value => e.ShadowOffsetX = value);
+        NumericSlider(Properties, "Offset Y (px)", e.ShadowOffsetY, -64, 64, value => e.ShadowOffsetY = value);
+        NumericSlider(Properties, "Blur (px)", e.ShadowBlur, 0, 16, value => e.ShadowBlur = value);
+    }
+    void NumericSlider(StackPanel panel, string label, double initial, double min, double max, System.Action<double> update, double step = 1)
+    {
+        var text = new TextBlock { Text = $"{label}: {initial:0.##}", Margin = new Thickness(4) };
+        var slider = new Slider { Minimum = min, Maximum = max, Value = initial, TickFrequency = step, IsSnapToTickEnabled = true, Margin = new Thickness(4) }; bool changing = false;
+        slider.ValueChanged += (_, _) => { if (!changing) { Change(); changing = true; } update(slider.Value); text.Text = $"{label}: {slider.Value:0.##}"; Draw(); };
+        slider.AddHandler(Thumb.DragCompletedEvent, new DragCompletedEventHandler((_, _) => changing = false)); slider.LostKeyboardFocus += (_, _) => changing = false;
+        panel.Children.Add(text); panel.Children.Add(slider);
+    }
+    void AssignSkin(Element element)
+    {
+        var dialog = new OpenFileDialog { Filter = "PNG skin|*.png", Title = "Choose control skin" }; if (dialog.ShowDialog() != true) return;
+        var bytes = File.ReadAllBytes(dialog.FileName); ProjectStore.TextureSize(bytes);
+        DecodeTexture(bytes);
+        string stem = System.Text.RegularExpressions.Regex.Replace(Path.GetFileNameWithoutExtension(dialog.FileName).ToLowerInvariant(), "[^a-z0-9_-]", "_");
+        string name = stem + ".png"; int suffix = 1;
+        while (Wysicraft.Core.TextureAssets.TryGet(project, Wysicraft.Core.TextureAssets.Resource(project.Manifest.Id, name, element.Type), out var existing) && !existing.SequenceEqual(bytes)) name = stem + "_" + suffix++ + ".png";
+        Change(); project.Assets[Wysicraft.Core.TextureAssets.Path(project.Manifest.Id, name, element.Type)] = bytes; element.Texture = Wysicraft.Core.TextureAssets.Resource(project.Manifest.Id, name, element.Type); Draw(); RefreshInspector();
+    }
+    static readonly System.Runtime.CompilerServices.ConditionalWeakTable<byte[], BitmapImage> TexturePreviews = new();
+    static BitmapImage DecodeTexture(byte[] bytes) => TexturePreviews.GetValue(bytes, DecodePreview);
+    static BitmapImage DecodePreview(byte[] bytes)
+    {
+        var size = ProjectStore.TextureSize(bytes);
+        var image = new BitmapImage(); image.BeginInit(); image.CacheOption = BitmapCacheOption.OnLoad;
+        // Keep full-resolution source bytes in the pack, but bound desktop preview memory.
+        if (Math.Max(size.Width, size.Height) > 2048) { if (size.Width >= size.Height) image.DecodePixelWidth = 2048; else image.DecodePixelHeight = 2048; }
+        image.StreamSource = new MemoryStream(bytes); image.EndInit(); image.Freeze(); return image;
+    }
+    Brush SkinBrush(Element e)
+    {
+        if (!e.FillEnabled) return Brushes.Transparent;
+        if (e.Texture.Length == 0) return Brush(e.Background);
+        if (Wysicraft.Core.TextureAssets.TryGet(project, e.Texture, out var bytes))
+            try { return new ImageBrush(DecodeTexture(bytes)) { Stretch = Stretch.Fill }; } catch { return Brushes.Magenta; }
+        return Brush(e.Background);
+    }
+    Brush FrameBrush(Element e) => e.Type is "image" or "texture_region" ? e.FillEnabled ? Brush(e.Background) : Brushes.Transparent : SkinBrush(e);
+    Border DecorateControl(FrameworkElement content, Element e)
+    {
+        if (content is Control control) { control.Background = Brushes.Transparent; control.BorderThickness = new Thickness(0); }
+        if (content is TextBlock text) { text.Background = Brushes.Transparent; text.VerticalAlignment = VerticalAlignment.Center; }
+        var frame = new Border { Tag = "appearance", Background = FrameBrush(e), BorderBrush = Brush(e.BorderColor), BorderThickness = new Thickness(Math.Clamp(e.BorderWidth, 0, 32) * Zoom), CornerRadius = new CornerRadius(Math.Clamp(e.CornerRadius, 0, 128) * Zoom), Child = content };
+        if (content is System.Windows.Controls.Image or Grid) content.SizeChanged += (_, _) => { double r = Math.Max(0, e.CornerRadius - e.BorderWidth) * Zoom; content.Clip = new RectangleGeometry(new Rect(0, 0, Math.Max(0, content.ActualWidth), Math.Max(0, content.ActualHeight)), r, r); };
+        return frame;
+    }
+    ControlTemplate SkinTemplate(Element e)
+    {
+        var border = new FrameworkElementFactory(typeof(Border), "Skin");
+        border.SetValue(Border.BackgroundProperty, SkinBrush(e));
+        border.SetValue(Border.BorderBrushProperty, Brush(e.BorderColor));
+        border.SetValue(Border.BorderThicknessProperty, new Thickness(Math.Clamp(e.BorderWidth, 0, 32) * Zoom));
+        border.SetValue(Border.CornerRadiusProperty, new CornerRadius(Math.Min(e.CornerRadius, Math.Min(e.Bounds.Width, e.Bounds.Height) / 2) * Zoom));
+        border.SetValue(Border.PaddingProperty, new Thickness(4, 0, 4, 0));
+        var content = new FrameworkElementFactory(typeof(ContentPresenter));
+        content.SetValue(FrameworkElement.HorizontalAlignmentProperty, HorizontalAlignment.Stretch);
+        content.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
+        border.AppendChild(content);
+        var template = new ControlTemplate(typeof(Button)) { VisualTree = border };
+        var hover = new Trigger { Property = Button.IsMouseOverProperty, Value = true }; hover.Setters.Add(new Setter(UIElement.OpacityProperty, .9, "Skin")); template.Triggers.Add(hover);
+        var pressed = new Trigger { Property = Button.IsPressedProperty, Value = true }; pressed.Setters.Add(new Setter(UIElement.OpacityProperty, .65, "Skin")); template.Triggers.Add(pressed);
+        return template;
+    }
+    TextBlock StyledText(Element e)
+    {
+        var text = new TextBlock { Text = e.Text, TextTrimming = TextTrimming.CharacterEllipsis }; ApplyFont(text, e); return text;
+    }
+    void ApplyFont(FrameworkElement widget, Element e)
+    {
+        var family = new FontFamily(e.Font == "minecraft:uniform" ? "Segoe UI" : "Consolas");
+        double size = Math.Clamp(9 * Zoom * e.FontScale, 6, 144);
+        if (widget is Control control) { control.FontFamily = family; control.FontSize = size; control.FontWeight = e.Bold ? FontWeights.Bold : FontWeights.Normal; control.FontStyle = e.Italic ? FontStyles.Italic : FontStyles.Normal; control.Foreground = Brush(e.Foreground); }
+        if (widget is TextBlock text)
+        {
+            text.FontFamily = family; text.FontSize = size; text.FontWeight = e.Bold ? FontWeights.Bold : FontWeights.Normal; text.FontStyle = e.Italic ? FontStyles.Italic : FontStyles.Normal;
+            text.Foreground = Brush(e.Foreground); text.TextAlignment = e.Alignment == "center" ? TextAlignment.Center : e.Alignment == "right" ? TextAlignment.Right : TextAlignment.Left;
+            if (e.Underline) text.TextDecorations = TextDecorations.Underline;
+        }
+            if (e.TextShadow && widget is TextBlock or TextBox or CheckBox or ComboBox)
+            {
+                var color = ColorPicker.TryColor(e.ShadowColor, out var parsed) ? parsed : Colors.Black;
+                double distance = Math.Sqrt(e.ShadowOffsetX * e.ShadowOffsetX + e.ShadowOffsetY * e.ShadowOffsetY);
+                widget.Effect = new DropShadowEffect { Color = Color.FromRgb(color.R, color.G, color.B), Opacity = Math.Clamp(e.ShadowOpacity, 0, 1) * color.A / 255d, BlurRadius = Math.Clamp(e.ShadowBlur, 0, 16) * Zoom, ShadowDepth = distance * Zoom, Direction = (360 - Math.Atan2(e.ShadowOffsetY, e.ShadowOffsetX) * 180 / Math.PI) % 360 };
+        }
+    }
+}

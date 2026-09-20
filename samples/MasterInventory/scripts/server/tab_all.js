@@ -1,0 +1,1 @@
+function run(ctx) { global.masterinventory.controller.select(ctx, 'all'); }

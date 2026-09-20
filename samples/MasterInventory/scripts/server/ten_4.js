@@ -1,0 +1,1 @@
+function run(ctx) { global.masterinventory.controller.give(ctx, 4, 10); }

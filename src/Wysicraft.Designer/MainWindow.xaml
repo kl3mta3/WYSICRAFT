@@ -1,0 +1,28 @@
+<Window x:Class="Wysicraft.Designer.MainWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="WYSICRAFT — Visual UI Designer" Background="#1D2025" Foreground="#E2E6ED" FontFamily="Segoe UI" Width="1440" Height="920" MinWidth="1050" MinHeight="650">
+  <DockPanel>
+    <Menu x:Name="Menus" DockPanel.Dock="Top" Background="#30343C" Foreground="#EEEEEE" />
+    <WrapPanel x:Name="Toolbar" DockPanel.Dock="Top" Background="#25282E" />
+    <StatusBar DockPanel.Dock="Bottom" Background="#174D6A" Foreground="White">
+      <TextBlock x:Name="Status" Text="Ready" />
+    </StatusBar>
+    <ad:DockingManager x:Name="Workspace" xmlns:ad="https://github.com/Dirkster99/AvalonDock" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation">
+ <ad:DockingManager.Theme><theme:Vs2013DarkTheme xmlns:theme="clr-namespace:AvalonDock.Themes;assembly=AvalonDock.Themes.VS2013" /></ad:DockingManager.Theme><ad:LayoutRoot><ad:LayoutPanel Orientation="Vertical">
+  <ad:LayoutPanel Orientation="Horizontal">
+   <ad:LayoutAnchorablePaneGroup Orientation="Vertical" DockWidth="200">
+    <ad:LayoutAnchorablePane><ad:LayoutAnchorable ContentId="toolbox" Title="Toolbox" CanClose="False"><DockPanel xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"><ListBox x:Name="Toolbox" BorderThickness="0" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" /></DockPanel></ad:LayoutAnchorable></ad:LayoutAnchorablePane>
+    <ad:LayoutAnchorablePane><ad:LayoutAnchorable ContentId="layers" Title="Layers" CanClose="False"><DockPanel xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"><StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal"><Button x:Name="LayerUp" Content="↑" ToolTip="Bring forward" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" /><Button x:Name="LayerDown" Content="↓" ToolTip="Send backward" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" /><Button x:Name="LayerDuplicate" Content="Duplicate" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" /></StackPanel><ListBox x:Name="Layers" SelectionMode="Extended" BorderThickness="0" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" /></DockPanel></ad:LayoutAnchorable></ad:LayoutAnchorablePane>
+   </ad:LayoutAnchorablePaneGroup>
+   <ad:LayoutDocumentPane><ad:LayoutDocument ContentId="canvas" Title="Designer" CanClose="False" CanFloat="False"><DockPanel xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"><StackPanel DockPanel.Dock="Top" Orientation="Horizontal"><ComboBox x:Name="Screens" Width="230" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" /><Button x:Name="AddScreen" Content="+ Screen" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" /><Button x:Name="ScreenSettings" Content="Screen / Variables" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" /></StackPanel><ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" Background="#16191E"><Canvas x:Name="Surface" Margin="32" Background="#343A43" AllowDrop="True" Focusable="True" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" /></ScrollViewer></DockPanel></ad:LayoutDocument></ad:LayoutDocumentPane>
+   <ad:LayoutAnchorablePane DockWidth="330">
+    <ad:LayoutAnchorable ContentId="properties" Title="Properties" CanClose="False"><ScrollViewer VerticalScrollBarVisibility="Auto" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"><StackPanel x:Name="Properties" TextElement.Foreground="#E2E6ED" Margin="6" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" /></ScrollViewer></ad:LayoutAnchorable>
+    <ad:LayoutAnchorable ContentId="events" Title="Events" CanClose="False"><ScrollViewer VerticalScrollBarVisibility="Auto" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"><StackPanel x:Name="Events" TextElement.Foreground="#E2E6ED" Margin="6" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" /></ScrollViewer></ad:LayoutAnchorable>
+   </ad:LayoutAnchorablePane>
+  </ad:LayoutPanel>
+  <ad:LayoutAnchorablePane DockHeight="225">
+   <ad:LayoutAnchorable ContentId="output" Title="Output / Validation" CanClose="False"><ListBox x:Name="Output" FontFamily="Consolas" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" /></ad:LayoutAnchorable>
+   <ad:LayoutAnchorable ContentId="scripts" Title="Scripts" CanClose="False"><DockPanel xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"><StackPanel DockPanel.Dock="Top" Orientation="Horizontal"><ComboBox x:Name="ScriptFiles" Width="320" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" /><Button x:Name="NewScript" Content="New script" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" /><Button x:Name="OpenScript" Content="Import script" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" /><Button x:Name="SaveScript" Content="Save script" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" /><TextBlock x:Name="ScriptSide" Margin="12,6" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" /></StackPanel><DockPanel><TextBlock x:Name="LineNumbers" DockPanel.Dock="Left" FontFamily="Consolas" Foreground="#8894A5" Margin="8,6" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" /><TextBox x:Name="ScriptEditor" FontFamily="Consolas" AcceptsReturn="True" AcceptsTab="True" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" /></DockPanel></DockPanel></ad:LayoutAnchorable>
+  </ad:LayoutAnchorablePane>
+ </ad:LayoutPanel></ad:LayoutRoot>
+</ad:DockingManager>
+  </DockPanel>
+</Window>

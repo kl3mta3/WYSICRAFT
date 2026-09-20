@@ -1,0 +1,10 @@
+**/bin/
+**/obj/
+**/build/
+**/.gradle/
+**/run/
+.vs/
+.tools/
+artifacts/
+*.user
+*.log

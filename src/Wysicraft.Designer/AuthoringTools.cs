@@ -1,0 +1,73 @@
+using System.IO;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Input;
+using System.Windows.Media;
+using Wysicraft.Core;
+using Wysicraft.Models;
+using Wysicraft.Packaging;
+using Microsoft.Win32;
+
+namespace Wysicraft.Designer;
+public partial class MainWindow
+{
+    static readonly string[] ApiSnippets = [
+        "ctx.ui.setText('label_id', 'Hello');", "ctx.ui.setItem('item_id', 'minecraft:diamond');",
+        "ctx.ui.setItems('list_id', [{item:'minecraft:diamond',count:3,name:'Diamond'}]);",
+        "ctx.ui.setVisible('element_id', true);", "ctx.ui.setEnabled('element_id', true);",
+        "ctx.state.set('name', 'value');", "ctx.state.get('name');", "ctx.ui.close();",
+        "ctx.server.runCommand('say Hello');", "ctx.ui.open('screen_id');",
+        "ctx.player.getName();", "ctx.player.getInventory();", "ctx.player.getPosition();", "ctx.player.hasPermission(2);",
+        "ctx.ui.setItems('list_id', ctx.player.getInventory());", "console.log('Debug message');"
+    ];
+    void ShowScriptApi() {
+        var window=new Window { Owner=this,Title="Script API / insert snippet",Width=660,Height=440 };
+        var panel=new DockPanel { Margin=new Thickness(12) }; window.Content=panel;
+        var help=new TextBlock { Text="Standard scripts: ctx.ui and ctx.state work on both sides. ctx.player, server commands and ui.open require Server events. KubeJS uses event.ui/event.runCommand. Select a snippet and click Insert, or double-click. Ctrl+Space opens this list.",TextWrapping=TextWrapping.Wrap,Margin=new Thickness(4) };
+        DockPanel.SetDock(help,Dock.Top); panel.Children.Add(help);
+        var insert=new Button { Content="Insert into script" }; DockPanel.SetDock(insert,Dock.Bottom);panel.Children.Add(insert);
+        var list=new ListBox { ItemsSource=ApiSnippets,FontFamily=new FontFamily("Consolas"),SelectedIndex=0 }; panel.Children.Add(list);
+        void Insert() { if(editingScript==null) { Log("Select or create a script first."); return; } ScriptEditor.SelectedText=list.SelectedItem+Environment.NewLine; window.Close();ScriptEditor.Focus(); }
+        insert.Click+=(_,_)=>Insert(); list.MouseDoubleClick+=(_,_)=>Insert();window.Show();
+    }
+    static void FillItemList(ListBox list,string json, Wysicraft.Models.Element? element=null, Action<string>? fire=null) {
+        list.Tag=json;list.Items.Clear();
+        try { int index=0; foreach(var row in ItemRows.Parse(json)) {
+            int selectedIndex=index++; var panel=new DockPanel();
+            if(element!=null) foreach(var (label,ev) in new[]{(element.SecondaryLabel,"item_secondary"),(element.PrimaryLabel,"item_primary")}) if(label.Length>0) {var button=new Button {Content=label,MinWidth=65}; DockPanel.SetDock(button,Dock.Right); panel.Children.Add(button);button.Click+=(_,args)=>{element.Text=selectedIndex.ToString();fire?.Invoke(ev);args.Handled=true;};}
+            panel.Children.Add(new TextBlock {Text=$"◇ {row.Name}   ×{row.Count}"+(element?.ShowItemId==true?"\n"+row.Item:""),VerticalAlignment=VerticalAlignment.Center});
+            list.Items.Add(new ListBoxItem { Content=panel,ToolTip=row.Item,Height=(element?.RowHeight ?? 30)*2,HorizontalContentAlignment=HorizontalAlignment.Stretch,Padding=new Thickness(4) });
+        } }
+        catch(Exception ex) { list.Items.Add("Item List: "+ex.Message); }
+    }
+    string RuntimeJar() {
+        for(var directory=new DirectoryInfo(AppContext.BaseDirectory);directory!=null;directory=directory.Parent) {
+            foreach(var relative in new[]{"Runtime","wysicraft-runtime/build/libs"}) {
+                string path=Path.Combine(directory.FullName,relative,"wysicraft-"+Distribution.RuntimeVersion+".jar"); if(File.Exists(path)) return path;
+            }
+        }
+        throw new InvalidDataException("Matching runtime JAR missing. Keep Runtime beside Designer.");
+    }
+    void ExportArtifact(string format,string path) {
+        switch(format) {
+            case "installation": Distribution.Export(project,path,RuntimeJar()); break;
+            case "kubejs": case "jar": Distribution.Write(path,Distribution.BundledJar(project,RuntimeJar()));break;
+            case "kubejs_files": KubeExport.Export(project,path);break;
+            case "standard": ProjectStore.Export(project,path);break;
+            default: throw new InvalidDataException("Unknown export format");
+        }
+    }
+    void Export() {
+        SaveScriptText();var window=new Window { Owner=this,Title="Export project",Width=590,SizeToContent=SizeToContent.Height,WindowStartupLocation=WindowStartupLocation.CenterOwner };
+        var panel=new StackPanel { Margin=new Thickness(16) };window.Content=panel;
+        var formats=new ComboBox { ItemsSource=new[]{"Installation ZIP — bundled client/server JARs", "Project JAR — runtime + assigned scripts bundled", "Portable .wysicraft pack", "KubeJS loose files (advanced)"},SelectedIndex=1 }; panel.Children.Add(formats);
+        panel.Children.Add(new TextBlock { Text="For Minecraft 1.21.1 / NeoForge. Installation ZIP includes separate client/server project JARs, bundled runtime and assigned scripts, plus instructions. KubeJS projects still require KubeJS/Rhino. Save your editable .wysicraftproj separately. JAR changes require a game restart.",TextWrapping=TextWrapping.Wrap,Margin=new Thickness(4,12,4,12) });
+        var button=new Button { Content="Export…" };panel.Children.Add(button);
+        button.Click+=(_,_)=>Guard(()=>{
+            string format=new[]{"installation","jar","standard","kubejs_files"}[formats.SelectedIndex];
+            string ext=format=="jar"?"jar":format=="standard"?"wysicraft":"zip";
+            var dialog=new SaveFileDialog { Filter=$"Export file|*.{ext}",DefaultExt="."+ext,FileName=project.Manifest.Id+"."+ext };
+            if(dialog.ShowDialog()!=true)return; ExportArtifact(format,dialog.FileName);Log("Exported "+dialog.FileName);window.Close();
+        });window.ShowDialog();
+    }
+}
