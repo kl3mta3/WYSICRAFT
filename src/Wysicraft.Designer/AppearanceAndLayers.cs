@@ -1,3 +1,4 @@
+using Wysicraft.Core;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
@@ -103,6 +104,7 @@ public partial class MainWindow
             var item = new MenuItem { Header = label };
             item.Click += (_, _) => Guard(() => { SelectTarget(); action(); }); menu.Items.Add(item);
         }
+        menu.Items.Add(ArrangeMenu(SelectTarget));
         return menu;
     }
     void MoveLayers(int direction)
@@ -115,19 +117,22 @@ public partial class MainWindow
     }
     void Duplicate()
     {
-        InsertCopies(ui.Elements.Where(e => selected.Contains(e.Id)).ToList());
+        InsertCopies(ContainerTree.Moving(ui,selected).ToList());
     }
-    void InsertCopies(List<Element> originals)
+    void InsertCopies(List<Element> originals,Dictionary<string,string>? sourceGroups=null)
     {
         if (originals.Count == 0) return;
         Change(); var clones = originals.Select(Json.Clone).ToList(); var ids = new Dictionary<string, string>();
-        var groups=clones.Where(e=>e.LayerGroup.Length>0).Select(e=>e.LayerGroup).Distinct().ToDictionary(g=>g,g=>UniqueLayerGroup(g+" copy"));
+        var sourceUi=new UiDefinition {GroupParents=sourceGroups ?? new(ui.GroupParents)};
+        var groups=clones.SelectMany(e=>LayerGroups.Path(sourceUi,e.LayerGroup)).Distinct().ToDictionary(g=>g,g=>UniqueLayerGroup(g+" copy"));
+        foreach(var (oldGroup,newGroup) in groups)ui.GroupParents[newGroup]=groups.GetValueOrDefault(sourceUi.GroupParents.GetValueOrDefault(oldGroup,""),"");
         foreach(var clone in clones) if(groups.TryGetValue(clone.LayerGroup,out var group)) clone.LayerGroup=group;
         foreach (var clone in clones) { string old = clone.Id; clone.Id = Unique(old); ids.Add(old, clone.Id); ui.Elements.Add(clone); }
         foreach (var clone in clones)
         {
             clone.Bounds.X += Math.Max(1, project.Manifest.GridSize); clone.Bounds.Y += Math.Max(1, project.Manifest.GridSize);
             if (ids.TryGetValue(clone.Parent, out var parent)) clone.Parent = parent;
+            else if(!ui.Elements.Any(e=>e.Id==clone.Parent))clone.Parent="";
             foreach (var ev in clone.Events.Values) foreach (var handler in new[] { ev.Client, ev.Server }) foreach (var action in handler.Actions)
                 if (action.Type is "set_text" or "set_visible" or "set_enabled" or "set_value" or "change_texture" && ids.TryGetValue(action.Target, out var target)) action.Target = target;
         }
@@ -267,3 +272,6 @@ public partial class MainWindow
         }
     }
 }
+
+
+

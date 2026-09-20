@@ -21,7 +21,7 @@ public partial class MainWindow
                 case "save_as":
                     if(!Path.IsPathFullyQualified(path) || !path.EndsWith(".wysicraftproj",StringComparison.OrdinalIgnoreCase)) throw new InvalidDataException("Provide an absolute .wysicraftproj path in an existing directory.");
                     if(File.Exists(path) && !string.Equals(path,folder,StringComparison.OrdinalIgnoreCase)) throw new InvalidDataException("Destination exists. Choose a new filename.");
-                    ProjectStore.SaveProject(project,path);folder=path;dirty=false;Log("MCP saved "+path);return Json.Write(new{path,revision=Revision()});
+                    ProjectStore.SaveProject(project,path);folder=path;dirty=false;ClearRecovery();Log("MCP saved "+path);return Json.Write(new{path,revision=Revision()});
                 case "import_asset":
                     if(!Path.IsPathFullyQualified(path) || !path.EndsWith(".png",StringComparison.OrdinalIgnoreCase)) throw new InvalidDataException("Provide an absolute PNG path.");
                     if(new FileInfo(path).Length>ProjectStore.MaxEntry) throw new InvalidDataException("PNG exceeds 32 MiB.");
@@ -104,3 +104,4 @@ public sealed partial class DesignerMcpTools
     [McpServerTool(Name="project_control"),Description("Create or open a project. action is new (projectId required) or open (absolute path required). Refuses to replace unsaved changes or an active preview; save/close first.")]
     public Task<string> ProjectControl(string expectedRevision,string action,string path="",string projectId="",CancellationToken cancellationToken=default)=>editor.McpWork("project_"+action,expectedRevision,path:path,value:projectId,cancellationToken:cancellationToken);
 }
+

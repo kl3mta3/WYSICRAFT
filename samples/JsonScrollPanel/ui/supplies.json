@@ -1,0 +1,317 @@
+{
+  "elements": [
+    {
+      "id": "heading",
+      "text": "Workshop supplies / JSON demo",
+      "type": "label",
+      "bounds": {
+        "y": 8,
+        "height": 22,
+        "x": 16,
+        "width": 328
+      },
+      "fillEnabled": false
+    },
+    {
+      "id": "load_supplies",
+      "text": "Load test JSON",
+      "type": "button",
+      "events": {
+        "click": {
+          "client": {
+            "function": "populatePanel",
+            "actions": [],
+            "script": "scripts/client/populate_panel.js"
+          },
+          "server": {
+            "function": "",
+            "actions": [],
+            "script": ""
+          }
+        }
+      },
+      "bounds": {
+        "y": 36,
+        "height": 24,
+        "x": 16,
+        "width": 150
+      }
+    },
+    {
+      "id": "status",
+      "text": "Click Load test JSON",
+      "type": "label",
+      "bounds": {
+        "y": 66,
+        "height": 22,
+        "x": 16,
+        "width": 328
+      },
+      "fillEnabled": false
+    },
+    {
+      "background": "#17212D",
+      "bounds": {
+        "y": 96,
+        "height": 144,
+        "x": 16,
+        "width": 328
+      },
+      "borderColor": "#529BC5",
+      "type": "scroll_panel",
+      "id": "supplies_panel",
+      "borderWidth": 1
+    },
+    {
+      "bounds": {
+        "y": 102,
+        "height": 24,
+        "x": 22,
+        "width": 310
+      },
+      "id": "supply_row_1",
+      "type": "label",
+      "parent": "supplies_panel",
+      "visible": false,
+      "background": "#233448",
+      "text": "",
+      "foreground": "#ECF6FF"
+    },
+    {
+      "bounds": {
+        "y": 130,
+        "height": 24,
+        "x": 22,
+        "width": 310
+      },
+      "id": "supply_row_2",
+      "type": "label",
+      "parent": "supplies_panel",
+      "visible": false,
+      "background": "#1D2B3B",
+      "text": "",
+      "foreground": "#ECF6FF"
+    },
+    {
+      "bounds": {
+        "y": 158,
+        "height": 24,
+        "x": 22,
+        "width": 310
+      },
+      "id": "supply_row_3",
+      "type": "label",
+      "parent": "supplies_panel",
+      "visible": false,
+      "background": "#233448",
+      "text": "",
+      "foreground": "#ECF6FF"
+    },
+    {
+      "bounds": {
+        "y": 186,
+        "height": 24,
+        "x": 22,
+        "width": 310
+      },
+      "id": "supply_row_4",
+      "type": "label",
+      "parent": "supplies_panel",
+      "visible": false,
+      "background": "#1D2B3B",
+      "text": "",
+      "foreground": "#ECF6FF"
+    },
+    {
+      "bounds": {
+        "y": 214,
+        "height": 24,
+        "x": 22,
+        "width": 310
+      },
+      "id": "supply_row_5",
+      "type": "label",
+      "parent": "supplies_panel",
+      "visible": false,
+      "background": "#233448",
+      "text": "",
+      "foreground": "#ECF6FF"
+    },
+    {
+      "bounds": {
+        "y": 242,
+        "height": 24,
+        "x": 22,
+        "width": 310
+      },
+      "id": "supply_row_6",
+      "type": "label",
+      "parent": "supplies_panel",
+      "visible": false,
+      "background": "#1D2B3B",
+      "text": "",
+      "foreground": "#ECF6FF"
+    },
+    {
+      "bounds": {
+        "y": 270,
+        "height": 24,
+        "x": 22,
+        "width": 310
+      },
+      "id": "supply_row_7",
+      "type": "label",
+      "parent": "supplies_panel",
+      "visible": false,
+      "background": "#233448",
+      "text": "",
+      "foreground": "#ECF6FF"
+    },
+    {
+      "bounds": {
+        "y": 298,
+        "height": 24,
+        "x": 22,
+        "width": 310
+      },
+      "id": "supply_row_8",
+      "type": "label",
+      "parent": "supplies_panel",
+      "visible": false,
+      "background": "#1D2B3B",
+      "text": "",
+      "foreground": "#ECF6FF"
+    },
+    {
+      "bounds": {
+        "y": 326,
+        "height": 24,
+        "x": 22,
+        "width": 310
+      },
+      "id": "supply_row_9",
+      "type": "label",
+      "parent": "supplies_panel",
+      "visible": false,
+      "background": "#233448",
+      "text": "",
+      "foreground": "#ECF6FF"
+    },
+    {
+      "bounds": {
+        "y": 354,
+        "height": 24,
+        "x": 22,
+        "width": 310
+      },
+      "id": "supply_row_10",
+      "type": "label",
+      "parent": "supplies_panel",
+      "visible": false,
+      "background": "#1D2B3B",
+      "text": "",
+      "foreground": "#ECF6FF"
+    },
+    {
+      "bounds": {
+        "y": 382,
+        "height": 24,
+        "x": 22,
+        "width": 310
+      },
+      "id": "supply_row_11",
+      "type": "label",
+      "parent": "supplies_panel",
+      "visible": false,
+      "background": "#233448",
+      "text": "",
+      "foreground": "#ECF6FF"
+    },
+    {
+      "bounds": {
+        "y": 410,
+        "height": 24,
+        "x": 22,
+        "width": 310
+      },
+      "id": "supply_row_12",
+      "type": "label",
+      "parent": "supplies_panel",
+      "visible": false,
+      "background": "#1D2B3B",
+      "text": "",
+      "foreground": "#ECF6FF"
+    },
+    {
+      "bounds": {
+        "y": 438,
+        "height": 24,
+        "x": 22,
+        "width": 310
+      },
+      "id": "supply_row_13",
+      "type": "label",
+      "parent": "supplies_panel",
+      "visible": false,
+      "background": "#233448",
+      "text": "",
+      "foreground": "#ECF6FF"
+    },
+    {
+      "bounds": {
+        "y": 466,
+        "height": 24,
+        "x": 22,
+        "width": 310
+      },
+      "id": "supply_row_14",
+      "type": "label",
+      "parent": "supplies_panel",
+      "visible": false,
+      "background": "#1D2B3B",
+      "text": "",
+      "foreground": "#ECF6FF"
+    },
+    {
+      "bounds": {
+        "y": 494,
+        "height": 24,
+        "x": 22,
+        "width": 310
+      },
+      "id": "supply_row_15",
+      "type": "label",
+      "parent": "supplies_panel",
+      "visible": false,
+      "background": "#233448",
+      "text": "",
+      "foreground": "#ECF6FF"
+    },
+    {
+      "bounds": {
+        "y": 522,
+        "height": 24,
+        "x": 22,
+        "width": 310
+      },
+      "id": "supply_row_16",
+      "type": "label",
+      "parent": "supplies_panel",
+      "visible": false,
+      "background": "#1D2B3B",
+      "text": "",
+      "foreground": "#ECF6FF"
+    }
+  ],
+  "size": {
+    "height": 256,
+    "width": 360
+  },
+  "variables": {
+    "panel_json": ""
+  },
+  "title": "Workshop supplies",
+  "id": "supplies",
+  "events": {},
+  "schemaVersion": 1
+}

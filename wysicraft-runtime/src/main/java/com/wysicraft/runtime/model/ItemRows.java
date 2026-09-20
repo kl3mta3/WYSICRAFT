@@ -6,6 +6,8 @@ import com.wysicraft.runtime.pack.PackRepository;
 /** Bounded display data, never an instruction to grant/move inventory items. */
 public final class ItemRows {
     public record Row(String item,int count,String name) {}
+    public static boolean validEvent(Models.Element e,String event,String value) { try { if(!e.rowElements.isEmpty()) {if(!event.equals("item_click") && !com.wysicraft.runtime.model.RowTemplates.hasAction(e,event))return false;} else if(event.equals("item_primary") && e.primaryLabel.isEmpty() || event.equals("item_secondary") && e.secondaryLabel.isEmpty()) return false; int index=Integer.parseInt(value); return index>=0 && index<com.wysicraft.runtime.model.ItemRows.parse(e.value).size(); } catch(Exception ex) { return false; } }
+
     public static List<Row> parse(String json) {
         if (json==null || json.length()>4096) throw new IllegalArgumentException("Item list exceeds 4096 characters");
         var rows=Models.JSON.fromJson(json,Row[].class);
@@ -14,3 +16,4 @@ public final class ItemRows {
         return List.of(rows);
     }
 }
+

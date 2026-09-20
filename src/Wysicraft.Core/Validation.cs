@@ -21,14 +21,15 @@ public static class Validation
         if (!Id(m.Id)) Add("manifest", "", "Invalid pack ID");
         if (m.SchemaVersion != 1) Add("manifest", "", "Unsupported schema version");
         if (!Version(m.Version) || !Version(m.RuntimeVersion)) Add("manifest", "", "Versions must be major.minor.patch");
-        else if (System.Version.Parse(m.RuntimeVersion) > new System.Version(1,3,0)) Add("manifest", "", "Minimum runtime exceeds 1.3.0");
+        else if (System.Version.Parse(m.RuntimeVersion) > new System.Version(1,4,0)) Add("manifest", "", "Minimum runtime exceeds 1.4.0");
         if (!project.Screens.Any(s => s.Id == m.DefaultUi)) Add("manifest", "", "Default UI does not exist");
-        HashSet<string> uis = [];
+        HashSet<string> uis = []; var templates=project.Screens.SelectMany(s=>s.Elements).Where(e=>e.RowTemplate.Length>0).Select(e=>e.RowTemplate).ToHashSet();
         foreach (var ui in project.Screens)
         {
             if (!Id(ui.Id) || !uis.Add(ui.Id)) Add(ui.Id, "", "Invalid or duplicate UI ID");
             if (ui.SchemaVersion != 1) Add(ui.Id, "", "Unsupported schema version");
             if (ui.Size.Width is < 16 or > 4096 || ui.Size.Height is < 16 or > 4096 || ui.Elements.Count > 512) Add(ui.Id, "", "Canvas or element limit exceeded");
+            try { foreach(var group in ui.GroupParents.Keys.Concat(ui.Elements.Select(e=>e.LayerGroup))) { foreach(var part in LayerGroups.Path(ui,group))if(part.Length>64 || part.Any(char.IsControl))throw new InvalidDataException("Invalid group name"); } } catch(Exception ex) { Add(ui.Id,"",ex.Message); }
             HashSet<string> ids = [];
             foreach (var e in ui.Elements)
             {
@@ -39,12 +40,13 @@ public static class Validation
                 if (!Resource(e.Font) || !double.IsFinite(e.CornerRadius) || e.CornerRadius < 0 || e.CornerRadius > 128) Add(ui.Id, e.Id, "Invalid font resource or corner radius (0–128)");
                 if (!double.IsFinite(e.BorderWidth + e.ShadowOpacity + e.ShadowOffsetX + e.ShadowOffsetY + e.ShadowBlur) || e.BorderWidth is < 0 or > 32 || e.ShadowOpacity is < 0 or > 1 || Math.Abs(e.ShadowOffsetX) > 64 || Math.Abs(e.ShadowOffsetY) > 64 || e.ShadowBlur is < 0 or > 16) Add(ui.Id, e.Id, "Invalid border/shadow settings");
                 foreach (var color in new[] { e.Foreground, e.Background, e.BorderColor, e.ShadowColor }) if (!Regex.IsMatch(color, "^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$")) Add(ui.Id, e.Id, "Color must be #RRGGBB or #AARRGGBB");
-                if (e.Parent != "" && !ui.Elements.Any(p => p.Id == e.Parent && p.Id != e.Id && p.Parent == "" && p.Type is "panel" or "scroll_panel")) Add(ui.Id, e.Id, "Parent must be a root panel");
+                try { ContainerTree.Ancestors(ui,e).ToArray(); } catch(Exception ex) { Add(ui.Id,e.Id,ex.Message); }
                 foreach (string condition in new[] { e.VisibleIf, e.EnabledIf }) try { Expressions.Evaluate(condition, ui.Variables); } catch (FormatException ex) { Add(ui.Id, e.Id, ex.Message); }
                 if (e.Texture != "") { if (!Resource(e.Texture)) Add(ui.Id, e.Id, "Invalid texture resource"); else if (e.Texture.StartsWith(m.Id + ":") && !TextureAssets.TryGet(project, e.Texture, out _)) Add(ui.Id, e.Id, "Missing texture asset"); }
-                if (e.Type == "item" && !Resource(e.Item)) Add(ui.Id, e.Id, "Invalid item identifier");
+                if (e.Type == "item" && !(templates.Contains(ui.Id) && e.Item=="${row.item}") && !Resource(e.Item)) Add(ui.Id, e.Id, "Invalid item identifier");
                 if(e.RowHeight<24 || e.RowHeight>128 || e.PrimaryLabel.Length>24 || e.SecondaryLabel.Length>24) Add(ui.Id,e.Id,"Row height must be 24–128; button labels at most 24 characters");
                 if(e.Type=="item_list") try { ItemRows.Parse(e.Value); } catch(Exception ex) { Add(ui.Id,e.Id,ex.Message); }
+                if(e.Type=="item_list" && (e.RowTemplate.Length>0 || e.RowElements.Count>0)) try { RowTemplates.Check(RowTemplates.Resolve(project,e)); } catch(Exception ex) { Add(ui.Id,e.Id,ex.Message); }
                 CheckEvents(ui, e.Id, e.Events, Registry.Controls.GetValueOrDefault(e.Type)?.Events ?? []);
             }
             CheckEvents(ui, "", ui.Events, ["open", "close"]);
@@ -83,3 +85,6 @@ public static class Validation
         }
     }
 }
+
+
+

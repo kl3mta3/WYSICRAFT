@@ -27,7 +27,7 @@ public partial class MainWindow : Window
     {
         InitializeComponent(); ui = project.Screens[0];
         history = new(() => project, value => { project = value; ui = project.Screens.FirstOrDefault(s => s.Id == ui.Id) ?? project.Screens[0]; dirty = true; RefreshAll(); });
-        BuildMenus(); InitializeDocking();
+        BuildMenus(); InitializeDocking(); InitializeRecovery();
         ScriptEditor.PreviewKeyDown+=(_,e)=>{if(e.Key==Key.Space && Keyboard.Modifiers.HasFlag(ModifierKeys.Control)) { e.Handled=true; ShowScriptApi(); }};
         InitializeLayers();
         foreach (var spec in Registry.Controls.Values) Toolbox.Items.Add(new ListBoxItem { Content = spec.DisplayName, Tag = spec.Type, Padding = new Thickness(8) });
@@ -39,13 +39,14 @@ public partial class MainWindow : Window
         Screens.SelectionChanged += (_, _) => { if (!refreshing && Screens.SelectedItem is string id) { ui = project.Screens.First(s => s.Id == id); selected.Clear(); Draw(); RefreshInspector(); } };
         AddScreen.Click += (_, _) => Guard(() => { string? id = Prompt("New screen", "Screen ID", "screen_" + project.Screens.Count); if (id == null) return; if (!Validation.Id(id) || project.Screens.Any(s => s.Id == id)) throw new Exception("Use a unique lowercase ID"); Change(); ui = new() { Id = id, Title = id }; project.Screens.Add(ui); selected.Clear(); RefreshAll(); });
         ScreenSettings.Click += (_, _) => EditScreen();
+        SelectScreen.Click += (_, _) => { selected.Clear(); dragBounds=null; Surface.ReleaseMouseCapture(); Draw(); RefreshInspector(); ShowDock("events"); };
         NewScript.Click += (_, _) => Guard(() => { var path = Prompt("New script", "Path (scripts/client/name.js or scripts/server/name.js)", "scripts/client/main.js"); if (path == null) return; ValidateScriptPath(path); if (project.Scripts.ContainsKey(path)) throw new Exception("Script already exists"); Change(); project.Scripts[path] = "function onClick(ctx) {\n  // Use only the approved WYSICRAFT API.\n}\n"; RefreshScripts(path); });
         OpenScript.Click += (_, _) => Guard(() => { var dialog = new OpenFileDialog { Filter = "JavaScript|*.js" }; if (dialog.ShowDialog() != true) return; string? path = Prompt("Import script", "Project path", "scripts/client/" + System.IO.Path.GetFileName(dialog.FileName)); if (path == null) return; ValidateScriptPath(path); Change(); project.Scripts[path] = File.ReadAllText(dialog.FileName); RefreshScripts(path); });
         SaveScript.Click += (_, _) => Guard(() => { SaveScriptText(); Save(false); });
         ScriptFiles.SelectionChanged += (_, _) => { if (refreshing) return; if (ScriptTemplate.All.FirstOrDefault(t=>t.Title == ScriptFiles.SelectedItem as string) is ScriptTemplate template) { Guard(()=>ChooseScriptTemplate(template)); return; } SaveScriptText(); editingScript = ScriptFiles.SelectedItem as string; ScriptEditor.Text = editingScript == null ? "" : project.Scripts[editingScript]; ScriptSide.Text = editingScript?.Contains("/server/") == true ? "SERVER • trusted host only" : "CLIENT"; };
         ScriptEditor.TextChanged += (_, _) => { LineNumbers.Text = string.Join("\n", Enumerable.Range(1, Math.Min(1000, ScriptEditor.LineCount > 0 ? ScriptEditor.LineCount : 1))); };
         PreviewKeyDown += Keys;
-        Closing += (_, e) => { SaveScriptText(); if (dirty) { var result = MessageBox.Show(this, "Save changes before closing?", "WYSICRAFT", MessageBoxButton.YesNoCancel); if (result == MessageBoxResult.Cancel) e.Cancel = true; if (result == MessageBoxResult.Yes) { Save(false); e.Cancel = dirty; } } };
+        Closing += (_, e) => { if(crashRecovery)return; SaveScriptText(); if (dirty) { var result = MessageBox.Show(this, "Save changes before closing?", "WYSICRAFT", MessageBoxButton.YesNoCancel); if (result == MessageBoxResult.Cancel) e.Cancel = true; if (result == MessageBoxResult.Yes) { Save(false); e.Cancel = dirty; } } };
         RefreshAll();
     }
     void Guard(Action action) { try { action(); } catch (Exception ex) { Log(ex.Message); MessageBox.Show(this, ex.Message, "WYSICRAFT", MessageBoxButton.OK, MessageBoxImage.Error); } }
@@ -75,8 +76,9 @@ public partial class MainWindow : Window
     void BuildMenus()
     {
         MenuItem Menu(string header, params (string, Action)[] entries) { var menu = new MenuItem { Header = header }; foreach (var (name, action) in entries) { var item = new MenuItem { Header = name }; item.Click += (_, _) => Guard(action); menu.Items.Add(item); } Menus.Items.Add(menu); return menu; }
-        Menu("_File", ("New Project", NewProject), ("Open Project / Pack", OpenProject), ("Save", () => Save(false)), ("Save As", () => Save(true)), ("Export Pack", Export), ("Export for KubeJS", ExportKube), ("Exit", Close));
-        Menu("_Edit", ("Undo", history.Undo), ("Redo", history.Redo), ("Cut", () => { Copy(); Delete(); }), ("Copy", Copy), ("Paste", Paste), ("Duplicate", Duplicate), ("Group", GroupSelected), ("Ungroup", UngroupSelected), ("Delete", Delete));
+        Menu("_File", ("New Project", NewProject), ("Open Project / Pack", OpenProject), ("Recover unsaved project", RecoverProject), ("Save", () => Save(false)), ("Save As", () => Save(true)), ("Export Pack", Export), ("Export for KubeJS", ExportKube), ("Exit", Close));
+        var editMenu=Menu("_Edit", ("Undo", history.Undo), ("Redo", history.Redo), ("Cut", () => { Copy(); Delete(); }), ("Copy", Copy), ("Paste", Paste), ("Duplicate", Duplicate), ("Group", GroupSelected), ("Ungroup", UngroupSelected), ("Delete", Delete));
+        editMenu.Items.Add(ArrangeMenu());
         var viewMenu = Menu("_View", ("Reset Layout", ResetDockLayout), ("Grid", () => { grid = !grid; Draw(); }), ("Snap to Grid", () => { Change(); project.Manifest.Snap = !project.Manifest.Snap; }));
         var panelsMenu = new MenuItem { Header = "_Panels" };
         foreach (var (title, id) in new[] { ("Toolbox", "toolbox"), ("Layers", "layers"), ("Properties", "properties"), ("Events", "events"), ("Scripts", "scripts"), ("Output", "output") }) {
@@ -86,22 +88,19 @@ public partial class MainWindow : Window
         }
         viewMenu.Items.Insert(0, panelsMenu);
         Menu("_Project", ("Validate", Validate), ("Export", Export), ("Export for KubeJS", ExportKube), ("Project Settings", Settings), ("Import Texture", ImportTexture), ("Preview", Preview), ("Test in Minecraft", TestMinecraft));
-        Menu("_Help", ("Script API / snippets", ShowScriptApi), ("About", () => MessageBox.Show(this, "WYSICRAFT 1.3.2\nVisual GUI designer for Minecraft 1.21.1 / NeoForge\nClient and server JavaScript use the bundled engine.\nSee docs in the repository.", "About WYSICRAFT")));
+        Menu("_Help", ("Script API / snippets", ShowScriptApi), ("About", () => MessageBox.Show(this, "WYSICRAFT 1.1.0-dev.1\nVisual GUI designer for Minecraft 1.21.1 / NeoForge\nClient and server JavaScript use the bundled engine.\nSee docs in the repository.", "About WYSICRAFT")));
         foreach (var (label, action) in new (string, Action)[] { ("▶ Preview", Preview), ("Minecraft test", TestMinecraft), ("Validate", Validate), ("Export…", Export), ("Export for KubeJS", ExportKube) }) { var button = new Button { Content = label }; button.Click += (_, _) => Guard(action); Toolbar.Children.Add(button); }
         AddMcpButton();
         Toolbar.Children.Add(new TextBlock { Text = "  200%  •  Minecraft GUI pixels", VerticalAlignment = VerticalAlignment.Center, Foreground = Brushes.LightGray });
     }
     bool CanReplace() { SaveScriptText(); if (!dirty) return true; var result = MessageBox.Show(this, "Save current project first?", "WYSICRAFT", MessageBoxButton.YesNoCancel); if (result == MessageBoxResult.Cancel) return false; if (result == MessageBoxResult.Yes) { Save(false); return !dirty; } return true; }
-    void NewProject() { if (!CanReplace()) return; string? name = Prompt("New project", "Project name", "Untitled"); if (name == null) return; project = new(); project.Manifest.Name = name; project.Manifest.Id = System.Text.RegularExpressions.Regex.Replace(name.ToLowerInvariant(), "[^a-z0-9_]", "_"); if (!Validation.Id(project.Manifest.Id)) project.Manifest.Id = "new_project"; ui = project.Screens[0]; folder = null; selected.Clear(); history.Clear(); dirty = true; RefreshAll(); Settings(); }
+    void NewProject() { if (!CanReplace()) return; string? name = Prompt("New project", "Project name", "Untitled"); if (name == null) return; ClearRecovery(); editingScript=null; project = new(); project.Manifest.Name = name; project.Manifest.Id = System.Text.RegularExpressions.Regex.Replace(name.ToLowerInvariant(), "[^a-z0-9_]", "_"); if (!Validation.Id(project.Manifest.Id)) project.Manifest.Id = "new_project"; ui = project.Screens[0]; folder = null; selected.Clear(); history.Clear(); dirty = true; RefreshAll(); Settings(); }
     void OpenProject() {
         if (!CanReplace()) return;
         var dialog = new OpenFileDialog { Filter = "WYSICRAFT files|*.wysicraftproj;*.wysicraft;project.json|Editable project|*.wysicraftproj|Legacy project|project.json|Runtime pack|*.wysicraft" };
         if (dialog.ShowDialog() != true) return;
         string path = dialog.FileName;
-        var loaded = ProjectStore.Load(System.IO.Path.GetFileName(path)=="project.json" ? System.IO.Path.GetDirectoryName(path)! : path);
-        project=loaded; folder=path.EndsWith(".wysicraftproj",StringComparison.OrdinalIgnoreCase)?path:null;
-        ui=project.Screens.FirstOrDefault(s=>s.Id==project.Manifest.DefaultUi) ?? project.Screens.First();
-        selected.Clear(); history.Clear(); dirty=false; editingScript=null; RefreshAll(); Log("Loaded " + project.Manifest.Name);
+        OpenProjectPath(path);
     }
     void Save(bool saveAs) { Guard(() => {
         SaveScriptText(); string? destination=folder;
@@ -109,7 +108,7 @@ public partial class MainWindow : Window
             var dialog=new SaveFileDialog { Title="Save WYSICRAFT project", Filter="WYSICRAFT Project|*.wysicraftproj", DefaultExt=".wysicraftproj", AddExtension=true, FileName=folder==null?project.Manifest.Id+".wysicraftproj":System.IO.Path.GetFileName(folder) };
             if(dialog.ShowDialog()!=true) return; destination=dialog.FileName;
         }
-        ProjectStore.SaveProject(project,destination); folder=destination; dirty=false; Log("Saved " + destination);
+        ProjectStore.SaveProject(project,destination); folder=destination; dirty=false; ClearRecovery(); Log("Saved " + destination);
     }); }
     void ExportPack() { SaveScriptText(); Validate(); if (Validation.Check(project).Count > 0) return; var dialog = new SaveFileDialog { Filter = "WYSICRAFT Pack|*.wysicraft", FileName = project.Manifest.Id + ".wysicraft" }; if (dialog.ShowDialog() != true) return; ProjectStore.Export(project, dialog.FileName); Log("Exported " + dialog.FileName); }
     void ExportKube() { SaveScriptText(); var dialog = new SaveFileDialog { Filter = "Bundled project JAR|*.jar", FileName = project.Manifest.Id + ".jar" }; if (dialog.ShowDialog() != true) return; Distribution.Write(dialog.FileName,Distribution.BundledJar(project,RuntimeJar())); Log("Exported bundled project JAR: " + dialog.FileName + ". KubeJS handlers require KubeJS/Rhino installed."); }
@@ -136,8 +135,11 @@ public partial class MainWindow : Window
             // the entire designer wrapper hittable, including the control interior.
             var border = new Border { Background = Brushes.Transparent, Tag = e.Id, Width = e.Bounds.Width * Zoom, Height = e.Bounds.Height * Zoom, BorderThickness = new Thickness(selected.Contains(e.Id) ? 2 : 1), BorderBrush = selected.Contains(e.Id) ? Brushes.DeepSkyBlue : Brushes.DimGray, Opacity = e.Visible ? Math.Clamp(e.Opacity, .15, 1) : .25, Child = RenderControl(e, false, null), ToolTip = e.Id + " • " + e.Type };
             Canvas.SetLeft(border, e.Bounds.X * Zoom); Canvas.SetTop(border, e.Bounds.Y * Zoom); Surface.Children.Add(border);
+            var clipped=new Rect(e.Bounds.X*Zoom,e.Bounds.Y*Zoom,e.Bounds.Width*Zoom,e.Bounds.Height*Zoom);
+            foreach(var ancestor in ContainerTree.Ancestors(ui,e))clipped.Intersect(new Rect(ancestor.Bounds.X*Zoom,ancestor.Bounds.Y*Zoom,ancestor.Bounds.Width*Zoom,ancestor.Bounds.Height*Zoom));
+            border.Clip=new RectangleGeometry(clipped.IsEmpty?new Rect():new Rect(clipped.X-e.Bounds.X*Zoom,clipped.Y-e.Bounds.Y*Zoom,clipped.Width,clipped.Height));
             border.ContextMenu = ElementMenu(e);
-            border.MouseLeftButtonDown += (_, args) => { SelectCanvasElement(e.Id, Keyboard.Modifiers); Change(); dragStart = args.GetPosition(Surface); dragBounds = ui.Elements.Where(x => selected.Contains(x.Id)).ToDictionary(x => x.Id, x => Json.Clone(x.Bounds)); Surface.CaptureMouse(); Surface.Focus(); Draw(); RefreshInspector(); args.Handled = true; };
+            border.MouseLeftButtonDown += (_, args) => { SelectCanvasElement(e.Id, Keyboard.Modifiers); Change(); dragStart = args.GetPosition(Surface); dragBounds = ContainerTree.Moving(ui,selected).ToDictionary(x => x.Id, x => Json.Clone(x.Bounds)); Surface.CaptureMouse(); Surface.Focus(); Draw(); RefreshInspector(); args.Handled = true; };
             if (selected.Contains(e.Id))
             {
                 var handle = new Thumb { Width = 9, Height = 9, Background = Brushes.DeepSkyBlue, Cursor = Cursors.SizeNWSE }; Canvas.SetLeft(handle, (e.Bounds.X + e.Bounds.Width) * Zoom - 5); Canvas.SetTop(handle, (e.Bounds.Y + e.Bounds.Height) * Zoom - 5); Panel.SetZIndex(handle, 1000); Surface.Children.Add(handle);
@@ -148,14 +150,14 @@ public partial class MainWindow : Window
         Status.Text = $"{ui.Id}  |  {ui.Size.Width} × {ui.Size.Height}  |  {selected.Count} selected  |  Grid {project.Manifest.GridSize}  |  Snap {(project.Manifest.Snap ? "on" : "off")}";
     }
     void DragMove(object sender, MouseEventArgs args) { if (dragBounds == null || args.LeftButton != MouseButtonState.Pressed) return; var p = args.GetPosition(Surface); foreach (var e in ui.Elements.Where(e => dragBounds.ContainsKey(e.Id))) { e.Bounds.X = Math.Max(0, Snap(dragBounds[e.Id].X + (p.X - dragStart.X) / Zoom)); e.Bounds.Y = Math.Max(0, Snap(dragBounds[e.Id].Y + (p.Y - dragStart.Y) / Zoom)); } Draw(); }
-    void Delete() { if (selected.Count == 0) return; Change(); ui.Elements.RemoveAll(e => selected.Contains(e.Id)); selected.Clear(); Draw(); RefreshInspector(); }
-    void Copy() { var elements = ui.Elements.Where(e => selected.Contains(e.Id)).ToList(); if (elements.Count > 0) Clipboard.SetData("Wysicraft.Elements", Json.Write(elements)); }
-    void Paste() { if (Clipboard.GetData("Wysicraft.Elements") is string json) InsertCopies(Json.Read<List<UiElement>>(json)); }
+    void Delete() { if (selected.Count == 0) return; Change(); var removed=ContainerTree.Moving(ui,selected).Select(e=>e.Id).ToHashSet(); ui.Elements.RemoveAll(e => removed.Contains(e.Id)); selected.Clear(); Draw(); RefreshInspector(); }
+    void Copy() { var elements = ContainerTree.Moving(ui,selected).ToList(); if (elements.Count > 0) Clipboard.SetData("Wysicraft.ElementsV2", Json.Write(new UiDefinition {Elements=elements,GroupParents=new(ui.GroupParents)})); }
+    void Paste() { if(Clipboard.GetData("Wysicraft.ElementsV2") is string data) {var copied=Json.Read<UiDefinition>(data);InsertCopies(copied.Elements,copied.GroupParents);} else if (Clipboard.GetData("Wysicraft.Elements") is string json) InsertCopies(Json.Read<List<UiElement>>(json)); }
     void SelectCanvasElement(string id, ModifierKeys modifiers)
     {
         if(modifiers.HasFlag(ModifierKeys.Alt)) { selected.Clear();selected.Add(id);return; }
-        string group=ui.Elements.First(e=>e.Id==id).LayerGroup;
-        if(group.Length>0 && !modifiers.HasFlag(ModifierKeys.Alt)) {var members=ui.Elements.Where(e=>e.LayerGroup==group).Select(e=>e.Id).ToArray(); bool toggle=(modifiers & (ModifierKeys.Control|ModifierKeys.Shift))!=0; bool remove=toggle && members.All(selected.Contains); if(!toggle)selected.Clear(); foreach(var member in members) {if(remove)selected.Remove(member);else selected.Add(member);}return;}
+        string group=LayerGroups.Root(ui,ui.Elements.First(e=>e.Id==id).LayerGroup);
+        if(group.Length>0 && !modifiers.HasFlag(ModifierKeys.Alt)) {var members=ui.Elements.Where(e=>LayerGroups.Contains(ui,group,e.LayerGroup)).Select(e=>e.Id).ToArray(); bool toggle=(modifiers & (ModifierKeys.Control|ModifierKeys.Shift))!=0; bool remove=toggle && members.All(selected.Contains); if(!toggle)selected.Clear(); foreach(var member in members) {if(remove)selected.Remove(member);else selected.Add(member);}return;}
         bool extend = (modifiers & (ModifierKeys.Control | ModifierKeys.Shift)) != 0;
         if (!extend && !selected.Contains(id)) selected.Clear();
         if (extend && selected.Contains(id)) selected.Remove(id); else selected.Add(id);
@@ -168,7 +170,7 @@ public partial class MainWindow : Window
         bool ctrl = Keyboard.Modifiers.HasFlag(ModifierKeys.Control);
         Action? action = ctrl ? e.Key switch { Key.G => Keyboard.Modifiers.HasFlag(ModifierKeys.Shift)?UngroupSelected:GroupSelected, Key.S => () => Save(false), Key.C => Copy, Key.V => Paste, Key.X => () => { Copy(); Delete(); }, Key.Z => history.Undo, Key.Y => history.Redo, _ => null } : e.Key == Key.Delete ? Delete : null;
         if (action != null) { Guard(action); e.Handled = true; return; }
-        if (selected.Count > 0 && e.Key is Key.Left or Key.Right or Key.Up or Key.Down) { Change(); int step = Keyboard.Modifiers.HasFlag(ModifierKeys.Shift) ? 10 : 1; foreach (var el in ui.Elements.Where(x => selected.Contains(x.Id))) { el.Bounds.X += e.Key == Key.Left ? -step : e.Key == Key.Right ? step : 0; el.Bounds.Y += e.Key == Key.Up ? -step : e.Key == Key.Down ? step : 0; } Draw(); RefreshInspector(); e.Handled = true; }
+        if (selected.Count > 0 && e.Key is Key.Left or Key.Right or Key.Up or Key.Down) { Change(); int step = Keyboard.Modifiers.HasFlag(ModifierKeys.Shift) ? 10 : 1; foreach (var el in ContainerTree.Moving(ui,selected)) { el.Bounds.X += e.Key == Key.Left ? -step : e.Key == Key.Right ? step : 0; el.Bounds.Y += e.Key == Key.Up ? -step : e.Key == Key.Down ? step : 0; } Draw(); RefreshInspector(); e.Handled = true; }
     }
     void Heading(StackPanel panel, string text) => panel.Children.Add(new TextBlock { Text = text.ToUpperInvariant(), Foreground = Brushes.LightSkyBlue, FontWeight = FontWeights.SemiBold, Margin = new Thickness(4, 12, 4, 5) });
     void Field(StackPanel panel, string label, object obj, string name)
@@ -190,8 +192,13 @@ public partial class MainWindow : Window
                     if (name == "Id" && (!Validation.Id(text) || obj is UiElement && ui.Elements.Any(e => e != obj && e.Id == text))) throw new Exception("ID must be unique and lowercase");
                     if (converted is double number && (!double.IsFinite(number) || Math.Abs(number) > 4096 || name is "Width" or "Height" && number < 1 || name == "Opacity" && (number < 0 || number > 1) || name == "FontScale" && (number <= 0 || number > 8))) throw new Exception("Value outside supported range");
                     if (obj is Wysicraft.Models.Size && converted is int size && size is < 16 or > 4096) throw new Exception("Canvas size must be 16–4096");
+                    if(name=="Parent" && obj is UiElement child) {string before=child.Parent;child.Parent=text;try {ContainerTree.Ancestors(ui,child).ToArray();}finally {child.Parent=before;}}
                     if (!checkpoint) { Change(); checkpoint = true; }
-                    if (name == "Id" && obj is UiElement element) { selected.Remove(element.Id); selected.Add(text); }
+                    if(obj is Wysicraft.Models.Bounds bounds && name is "X" or "Y") {
+                        var owner=ui.Elements.FirstOrDefault(e=>ReferenceEquals(e.Bounds,bounds));
+                        if(owner!=null) {double delta=Convert.ToDouble(converted)-Convert.ToDouble(prop.GetValue(obj));foreach(var descendant in ContainerTree.Moving(ui,new[]{owner.Id}).Where(e=>e!=owner)) {if(name=="X")descendant.Bounds.X+=delta;else descendant.Bounds.Y+=delta;}}
+                    }
+                    if (name == "Id" && obj is UiElement element) { foreach(var descendant in ui.Elements.Where(c=>c.Parent==element.Id))descendant.Parent=text; selected.Remove(element.Id); selected.Add(text); }
                     prop.SetValue(obj, converted); old = text; box.BorderBrush = new SolidColorBrush(Color.FromRgb(69,75,86)); Draw();
                 }
                 catch (Exception ex) { box.BorderBrush = Brushes.IndianRed; if (report) { Log(ex.Message); box.Text = old; } }
@@ -212,11 +219,13 @@ public partial class MainWindow : Window
         BuildAppearance(e);
         Heading(Properties, "Behavior"); foreach (string p in new[] { "Visible", "Enabled", "Tooltip", "VisibleIf", "EnabledIf" }) Field(Properties, p, e, p);
         if (Registry.Controls.TryGetValue(e.Type, out var spec)) { Heading(Properties, "Control / Minecraft"); foreach (string p in spec.Properties) Field(Properties, p, e, p); BuildEvents(e.Events, spec.Events); }
+        BuildRowTemplateFields(e);
     }
     void BuildEvents(Dictionary<string, UiEvent> events, string[] names)
     {
+        Heading(Events, ReferenceEquals(events,ui.Events) ? "Screen: " + ui.Id : "Element: " + ui.Elements.First(e=>ReferenceEquals(e.Events,events)).Id);
         Heading(Events, "Event actions");
-        var pick = new ComboBox { ItemsSource = names, SelectedIndex = 0 }; var side = new ComboBox { ItemsSource = new[] { "Client", "Server" }, SelectedIndex = 0 }; Events.Children.Add(pick); Events.Children.Add(side); var content = new StackPanel(); Events.Children.Add(content);
+        var pick = new ComboBox { ItemsSource = names, SelectedIndex = 0 }; var side = new ComboBox { ItemsSource = new[] { "Client", "Server" }, SelectedIndex = events.TryGetValue(names[0],out var firstEvent) && firstEvent.Server.Script.Length>0 && firstEvent.Client.Script.Length==0 ? 1 : 0 }; Events.Children.Add(pick); Events.Children.Add(side); var content = new StackPanel(); Events.Children.Add(content);
         void Populate()
         {
             content.Children.Clear(); string name = (string)pick.SelectedItem; bool server = side.SelectedIndex == 1;
@@ -276,6 +285,7 @@ public partial class MainWindow : Window
                 foreach (var ev in screen.Events.Values.Concat(screen.Elements.SelectMany(e => e.Events.Values)))
                     foreach (var action in ev.Client.Actions.Concat(ev.Server.Actions))
                         if (action.Type == "open_ui" && action.Value == oldId) action.Value = id.Text;
+            foreach(var element in project.Screens.SelectMany(s=>s.Elements))if(element.RowTemplate==oldId)element.RowTemplate=id.Text;
             ui.Id = id.Text; ui.Variables = parsed; ui.ShowFrame=frame.IsChecked==true; ui.DimBackground=dim.IsChecked==true; ui.FitToScreen=fit.IsChecked==true; RefreshAll(); window.DialogResult = true;
         });
         panel.Children.Add(save); window.Content = panel; window.ShowDialog();
@@ -302,6 +312,7 @@ public partial class MainWindow : Window
             case "panel": case "scroll_panel": widget = new Grid(); break;
             case "item_list":
                 var list=new ListBox { Background=Brush(e.Background),BorderThickness=new Thickness(0) };
+                ScrollViewer.SetCanContentScroll(list,false);
                 FillItemList(list,e.Value,e,fire);
                 list.SelectionChanged+=(_,_)=>{ if(list.SelectedIndex>=0) { e.Text=list.SelectedIndex.ToString(); fire?.Invoke("item_click"); } }; widget=list; break;
             default: widget = new TextBlock { Text = e.Type == "item" ? "◇ " + e.Item : e.Text, Foreground = Brush(e.Foreground), Background = e.Type == "label" ? Brushes.Transparent : Brush(e.Background), VerticalAlignment = VerticalAlignment.Center, FontSize = Math.Clamp(e.FontScale * 14, 6, 96), TextAlignment = e.Alignment == "center" ? TextAlignment.Center : e.Alignment == "right" ? TextAlignment.Right : TextAlignment.Left }; break;
@@ -311,3 +322,14 @@ public partial class MainWindow : Window
         widget.IsHitTestVisible = interactive; widget.IsEnabled = e.Enabled; widget.ToolTip = e.Tooltip; return widget;
     }
 }
+
+
+
+
+
+
+
+
+
+
+

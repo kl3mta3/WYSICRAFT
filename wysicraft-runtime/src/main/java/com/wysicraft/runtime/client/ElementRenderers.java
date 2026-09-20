@@ -36,7 +36,7 @@ public final class ElementRenderers {
             int bw=Math.max(32,Math.min(62,w/5)), right=w-6-buttons*bw;
             try { for(int i=Math.max(0,s.listScroll(e.id)/rh);i<rows.size();i++) {
                 int top=y+i*rh-s.listScroll(e.id); if(top>=y+h) break;
-                var row=rows.get(i); g.fill(x,top,x+w,top+rh-1,(i%2==0)?0x332C4E58:0x222C4E58);
+                var row=rows.get(i); if(!e.rowElements.isEmpty()) { RowTemplateRenderer.draw(s,g,e,row,i,x,top,w,rh);continue; } g.fill(x,top,x+w,top+rh-1,(i%2==0)?0x332C4E58:0x222C4E58);
                 g.renderItem(new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.parse(row.item()))),x+4,top+4);
                 var line=s.font().plainSubstrByWidth(row.name(),Math.max(1,right-30));
                 g.drawString(s.font(),line,x+26,top+4,0xFFE3ECEB,false);
@@ -94,3 +94,4 @@ public final class ElementRenderers {
     }
     public static int color(String value, double opacity) { try { long c = Long.parseLong(value.substring(1),16); int alpha = value.length() == 9 ? (int)(c >>> 24) : 255; return ((int)(alpha*opacity) << 24) | ((int)c & 0xFFFFFF); } catch (Exception ex) { return 0xFFFF00FF; } }
 }
+

@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "id": "kube_bridge",
+  "name": "KubeJS Bridge Demo",
+  "author": "",
+  "version": "1.0.0",
+  "runtimeVersion": "1.0.0",
+  "defaultUi": "kube_main",
+  "ui": [
+    "kube_main"
+  ],
+  "dependencies": [],
+  "gridSize": 8,
+  "snap": true
+}

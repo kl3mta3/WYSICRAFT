@@ -24,7 +24,7 @@ public partial class MainWindow
         var templates = new ComboBox { ItemsSource = ScriptTemplate.All.Where(t=>t.Server==server).ToList(), DisplayMemberPath = "Title", Margin = new Thickness(4), ToolTip = "Choose a template, edit its placeholder constants, then Save & Assign." };
         panel.Children.Add(templates);
         templates.SelectionChanged += (_,_) => Guard(()=> { if(templates.SelectedItem is ScriptTemplate template) { EditEventScript(events,eventName,elementId,server,true,template); refresh(); } });
-        var description = new TextBlock { Text = handler?.Script.Length > 0 ? Path.GetFileName(handler.Script) + " → " + handler.Function : "No script attached. Click New Script to create one.", TextWrapping = TextWrapping.Wrap, Margin = new Thickness(4) };
+        var description = new TextBlock { Text = handler?.Script.Length > 0 ? "Attached: " + handler.Script + " → " + handler.Function + " (" + handler.ScriptEngine + ")" : "No script attached. Click New Script to create one.", TextWrapping = TextWrapping.Wrap, Margin = new Thickness(4) };
         panel.Children.Add(description);
         var buttons = new WrapPanel(); panel.Children.Add(buttons);
         void Button(string title, System.Action action, bool enabled = true) { var button = new Button { Content = title, IsEnabled = enabled }; button.Click += (_, _) => Guard(action); buttons.Children.Add(button); }

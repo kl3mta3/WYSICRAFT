@@ -24,16 +24,21 @@ public final class DynamicScreen extends Screen {
     public static final Map<String,BiConsumer<DynamicScreen,Action>> ACTIONS = new HashMap<>();
     private final Map<String,Integer> scroll = new HashMap<>();
     private float viewScale=1;
-    private record RowsCache(String json,java.util.List<com.wysicraft.runtime.model.ItemRows.Row> rows) {}
+    private record RowsCache(String json,java.util.List<com.wysicraft.runtime.model.ItemRows.Row> rows,Map<Integer,List<Element>> templates) {}
     private final Map<String,RowsCache> itemRows=new HashMap<>();
     java.util.List<com.wysicraft.runtime.model.ItemRows.Row> rows(Element element) {
         var cache=itemRows.get(element.id);
-        if(cache==null || !cache.json.equals(element.value)) { cache=new RowsCache(element.value,com.wysicraft.runtime.model.ItemRows.parse(element.value));itemRows.put(element.id,cache); }
+        if(cache==null || !cache.json.equals(element.value)) { cache=new RowsCache(element.value,com.wysicraft.runtime.model.ItemRows.parse(element.value),new HashMap<>());itemRows.put(element.id,cache);scroll.put(element.id,Math.clamp(listScroll(element.id),0,Math.max(0,cache.rows.size()*element.rowHeight-(int)element.bounds.height))); }
         return cache.rows;
     }
+    List<Element> rowDisplay(Element list,int index) { rows(list); var cache=itemRows.get(list.id);return cache.templates.computeIfAbsent(index,i->list.rowElements.stream().map(e->com.wysicraft.runtime.model.RowTemplates.bind(e,cache.rows.get(i),i)).toList()); }
     int listScroll(String id) { return scroll.getOrDefault(id,0); }
     void testClick(Element element) { mouseClicked((x(element)+1)*viewScale,(y(element)+1)*viewScale,0); }
     void testRowClick(Element e,int index,boolean secondary) {
+        if(!e.rowElements.isEmpty()) {
+            var button=e.rowElements.stream().filter(v->v.rowAction.equals(secondary?"item_secondary":"item_primary")).findFirst().orElseThrow();
+            mouseClicked((x(e)+button.bounds.x+button.bounds.width/2)*viewScale,(y(e)+index*e.rowHeight-listScroll(e.id)+button.bounds.y+button.bounds.height/2)*viewScale,0);return;
+        }
         int bw=Math.max(32,Math.min(62,(int)e.bounds.width/5));
         mouseClicked((x(e)+e.bounds.width-6-bw*(secondary?0.5:1.5))*viewScale,(y(e)+index*e.rowHeight-listScroll(e.id)+8)*viewScale,0);
     }
@@ -48,16 +53,17 @@ public final class DynamicScreen extends Screen {
         if (!opened) { opened = true; fire(null,"open",""); }
     }
     @Override public boolean isPauseScreen() { return false; }
-    boolean visible(Element e) { if (!e.visible || !Expressions.evaluate(e.visibleIf,state)) return false; Element p = ui.element(e.parent); return p == null || p.visible && Expressions.evaluate(p.visibleIf,state); }
-    boolean enabled(Element e) { if (!e.enabled || !Expressions.evaluate(e.enabledIf,state)) return false; Element p = ui.element(e.parent); return p == null || p.enabled && Expressions.evaluate(p.enabledIf,state); }
+    java.util.List<Element> parents(Element e) { return com.wysicraft.runtime.model.ContainerTree.ancestors(ui,e); }
+    boolean visible(Element e) { return e.visible && Expressions.evaluate(e.visibleIf,state) && parents(e).stream().allMatch(p->p.visible && Expressions.evaluate(p.visibleIf,state)); }
+    boolean enabled(Element e) { return e.enabled && Expressions.evaluate(e.enabledIf,state) && parents(e).stream().allMatch(p->p.enabled && Expressions.evaluate(p.enabledIf,state)); }
     int x(Element e) { return originX + (int)e.bounds.x; }
-    int y(Element e) { return originY + (int)e.bounds.y - scroll.getOrDefault(e.parent,0); }
+    int y(Element e) { return originY + (int)e.bounds.y - parents(e).stream().filter(p->p.type.equals("scroll_panel")).mapToInt(p->scroll.getOrDefault(p.id,0)).sum(); }
     void clip(GuiGraphics g,int x,int y,int w,int h) {
         // GuiGraphics scissor coordinates do not use the pose transform.
         g.enableScissor((int)Math.floor(x*viewScale),(int)Math.floor(y*viewScale),
             (int)Math.ceil((x+w)*viewScale),(int)Math.ceil((y+h)*viewScale));
     }
-    boolean inside(Element e,double mx,double my) { mx/=viewScale; my/=viewScale; if (mx < x(e) || mx >= x(e)+e.bounds.width || my < y(e) || my >= y(e)+e.bounds.height) return false; Element p = ui.element(e.parent); return p == null || mx >= x(p) && mx < x(p)+p.bounds.width && my >= y(p) && my < y(p)+p.bounds.height; }
+    boolean inside(Element e,double mx,double my) { mx/=viewScale; my/=viewScale; if (mx < x(e) || mx >= x(e)+e.bounds.width || my < y(e) || my >= y(e)+e.bounds.height) return false; for(var p:parents(e)) if(mx<x(p) || mx>=x(p)+p.bounds.width || my<y(p) || my>=y(p)+p.bounds.height)return false; return true; }
     @Override public void render(GuiGraphics g,int mx,int my,float partial) {
         if(ui.dimBackground) g.fill(0,0,width,height,0xB010141B);
         g.pose().pushPose(); g.pose().scale(viewScale,viewScale,1);
@@ -65,10 +71,10 @@ public final class DynamicScreen extends Screen {
         Element over = null;
         for (Element e : ui.elements) {
             if (!visible(e)) continue; boolean hover = inside(e,mx,my); if (hover && enabled(e)) over = e;
-            Element parent = ui.element(e.parent); if (parent != null) clip(g,x(parent),y(parent),(int)parent.bounds.width,(int)parent.bounds.height);
+            var ancestors=parents(e); for(var parent:ancestors) clip(g,x(parent),y(parent),(int)parent.bounds.width,(int)parent.bounds.height);
             var renderer = ElementRenderers.get(e.type); if (renderer != null) try { ElementRenderers.skin(g,e,x(e),y(e),(int)e.bounds.width,(int)e.bounds.height); renderer.draw(this,g,e,x(e),y(e),(int)e.bounds.width,(int)e.bounds.height,hover && enabled(e)); ElementRenderers.border(g,e,x(e),y(e),(int)e.bounds.width,(int)e.bounds.height); } catch (Exception ex) { g.drawString(font,"Invalid " + e.type,x(e),y(e),0xFFFF7070); }
             if (!enabled(e)) ElementRenderers.roundedFill(g,x(e),y(e),(int)e.bounds.width,(int)e.bounds.height,e.cornerRadius,0x77000000);
-            if (parent != null) g.disableScissor();
+            for(var parent:ancestors) g.disableScissor();
         }
         if (over != hovered) { if (hovered != null) fire(hovered,"mouse_leave",""); hovered = over; if (hovered != null) fire(hovered,"mouse_enter",""); }
         if (hovered != null && System.currentTimeMillis()-lastHover > 250) { lastHover = System.currentTimeMillis(); fire(hovered,"hover",""); }
@@ -104,7 +110,7 @@ public final class DynamicScreen extends Screen {
         var reversed = new ArrayList<>(ui.elements); Collections.reverse(reversed);
         for (Element e : reversed) if (visible(e) && enabled(e) && inside(e,mx,my)) {
             switch (e.type) {
-                case "item_list" -> { int index=(int)((my/viewScale-y(e)+listScroll(e.id))/Math.clamp(e.rowHeight,24,128)); if(index>=0 && index<rows(e).size()) { int count=(e.primaryLabel.isEmpty()?0:1)+(e.secondaryLabel.isEmpty()?0:1); int bw=Math.max(32,Math.min(62,(int)e.bounds.width/5)); double local=mx/viewScale-x(e); String event="item_click"; if(!e.secondaryLabel.isEmpty() && local>=e.bounds.width-6-bw) event="item_secondary"; else if(!e.primaryLabel.isEmpty() && local>=e.bounds.width-6-count*bw) event="item_primary"; fire(e,event,Integer.toString(index)); } }
+                case "item_list" -> { int index=(int)((my/viewScale-y(e)+listScroll(e.id))/Math.clamp(e.rowHeight,24,128)); if(index>=0 && index<rows(e).size()) { if(!e.rowElements.isEmpty()) {String action=RowTemplateRenderer.hit(this,e,mx/viewScale-x(e),(my/viewScale-y(e)+listScroll(e.id))%Math.clamp(e.rowHeight,24,128));if(!action.isEmpty())fire(e,action,Integer.toString(index));break;} int count=(e.primaryLabel.isEmpty()?0:1)+(e.secondaryLabel.isEmpty()?0:1); int bw=Math.max(32,Math.min(62,(int)e.bounds.width/5)); double local=mx/viewScale-x(e); String event="item_click"; if(!e.secondaryLabel.isEmpty() && local>=e.bounds.width-6-bw) event="item_secondary"; else if(!e.primaryLabel.isEmpty() && local>=e.bounds.width-6-count*bw) event="item_primary"; fire(e,event,Integer.toString(index)); } }
                 case "button" -> fire(e,"click","");
                 case "textbox" -> focused = e;
                 case "checkbox" -> { e.value = Boolean.toString(!Boolean.parseBoolean(e.value)); fire(e,e.value.equals("true") ? "checked" : "unchecked",e.value); }
@@ -118,7 +124,7 @@ public final class DynamicScreen extends Screen {
     private void slide(Element e,double mx) { e.value = String.format(Locale.ROOT,"%.2f",e.minimum + Math.clamp((mx/viewScale-x(e))/e.bounds.width,0,1)*(e.maximum-e.minimum)); fire(e,"value_changed",e.value); }
     @Override public boolean mouseDragged(double mx,double my,int button,double dx,double dy) { if (dragging != null) { slide(dragging,mx); return true; } return super.mouseDragged(mx,my,button,dx,dy); }
     @Override public boolean mouseReleased(double mx,double my,int button) { dragging = null; return super.mouseReleased(mx,my,button); }
-    @Override public boolean mouseScrolled(double mx,double my,double horizontal,double vertical) { for(Element e:ui.elements) if(e.type.equals("item_list") && visible(e) && inside(e,mx,my)) { int max=Math.max(0,rows(e).size()*Math.clamp(e.rowHeight,24,128)-(int)e.bounds.height); scroll.put(e.id,Math.clamp(listScroll(e.id)-(int)(vertical*24),0,max)); return true; } for (Element e : ui.elements) if (e.type.equals("scroll_panel") && inside(e,mx,my)) { double bottom = ui.elements.stream().filter(c -> c.parent.equals(e.id)).mapToDouble(c -> c.bounds.y+c.bounds.height).max().orElse(e.bounds.y+e.bounds.height); int max = Math.max(0,(int)(bottom-e.bounds.y-e.bounds.height)); scroll.put(e.id,Math.clamp(scroll.getOrDefault(e.id,0)-(int)(vertical*12),0,max)); return true; } return false; }
+    @Override public boolean mouseScrolled(double mx,double my,double horizontal,double vertical) { for(Element e:ui.elements) if(e.type.equals("item_list") && visible(e) && enabled(e) && inside(e,mx,my)) { int max=Math.max(0,rows(e).size()*Math.clamp(e.rowHeight,24,128)-(int)e.bounds.height); int next=Math.clamp(listScroll(e.id)-(int)(vertical*24),0,max);if(next==listScroll(e.id))continue;scroll.put(e.id,next); return true; } for (Element e : ui.elements.stream().sorted(java.util.Comparator.comparingInt((Element e)->parents(e).size()).reversed()).toList()) if (e.type.equals("scroll_panel") && visible(e) && enabled(e) && inside(e,mx,my)) { double bottom = ui.elements.stream().filter(c -> c.parent.equals(e.id)).mapToDouble(c -> c.bounds.y+c.bounds.height).max().orElse(e.bounds.y+e.bounds.height); int max = Math.max(0,(int)(bottom-e.bounds.y-e.bounds.height)); int next=Math.clamp(scroll.getOrDefault(e.id,0)-(int)(vertical*12),0,max); if(next==scroll.getOrDefault(e.id,0))continue;scroll.put(e.id,next); return true; } return false; }
     @Override public boolean charTyped(char c,int modifiers) { if (focused != null && c >= 32 && c != 127 && focused.value.length() < 1024) { focused.value += c; fire(focused,"text_changed",focused.value); return true; } return super.charTyped(c,modifiers); }
     @Override public boolean keyPressed(int key,int scan,int modifiers) {
         if (focused != null) { if (key == GLFW.GLFW_KEY_BACKSPACE) { if (!focused.value.isEmpty()) focused.value = focused.value.substring(0,focused.value.length()-1); fire(focused,"text_changed",focused.value); return true; } if (key == GLFW.GLFW_KEY_ENTER || key == GLFW.GLFW_KEY_KP_ENTER) { fire(focused,"submit",focused.value); return true; } if (Screen.isPaste(key)) { String value = minecraft.keyboardHandler.getClipboard().replaceAll("[\\p{Cntrl}]",""); focused.value = (focused.value+value).substring(0,Math.min(1024,focused.value.length()+value.length())); fire(focused,"text_changed",focused.value); return true; } }
@@ -181,3 +187,6 @@ public final class DynamicScreen extends Screen {
         }
     }
 }
+
+
+

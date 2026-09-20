@@ -1,0 +1,11 @@
+{
+  "runtimeVersion": "1.1.0",
+  "ui": [
+    "main"
+  ],
+  "schemaVersion": 1,
+  "version": "1.0.0",
+  "defaultUi": "main",
+  "id": "live_inventory",
+  "name": "Live Inventory"
+}

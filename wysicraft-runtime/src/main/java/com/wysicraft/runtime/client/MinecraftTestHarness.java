@@ -19,6 +19,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 /** Local file control channel, opt-in development client only. Never used on multiplayer servers. */
 public final class MinecraftTestHarness {
     private static final String WORLD = "WYSICRAFT Test";
+    private static final boolean LOCAL_SERVER = "127.0.0.1:25579".equals(System.getProperty("wysicraft.localTestServer"));
     private static boolean started;
     private static long nextPoll;
     private static final AtomicBoolean pending = new AtomicBoolean();
@@ -72,7 +73,11 @@ public final class MinecraftTestHarness {
         if (!started && mc.screen instanceof TitleScreen) {
             started = true;
             try {
-                if (Files.isRegularFile(mc.gameDirectory.toPath().resolve("saves").resolve(WORLD).resolve("level.dat"))) {
+                if (LOCAL_SERVER) {
+                    var address=net.minecraft.client.multiplayer.resolver.ServerAddress.parseString("127.0.0.1:25579");
+                    var data=new net.minecraft.client.multiplayer.ServerData("WYSICRAFT local release check","127.0.0.1:25579",net.minecraft.client.multiplayer.ServerData.Type.OTHER);
+                    net.minecraft.client.gui.screens.ConnectScreen.startConnecting(new TitleScreen(),mc,address,data,false,null);
+                } else if (Files.isRegularFile(mc.gameDirectory.toPath().resolve("saves").resolve(WORLD).resolve("level.dat"))) {
                     mc.createWorldOpenFlows().openWorld(WORLD,() -> mc.setScreen(new TitleScreen()));
                 } else {
                     var rules = new GameRules();
@@ -111,7 +116,7 @@ public final class MinecraftTestHarness {
             }
             lastRequest=request.id; lastResult="Test key " + key + " on " + (mc.screen==null?"world":mc.screen.getClass().getSimpleName()); request=null;
         }
-        if (request != null && "click".equals(request.kind) && mc.getSingleplayerServer() != null) {
+        if (request != null && "click".equals(request.kind) && (mc.getSingleplayerServer() != null || LOCAL_SERVER)) {
             lastRequest = request.id;
             if (mc.screen instanceof DynamicScreen screen && screen.ui.element(request.command) != null) {
                 var element = screen.ui.element(request.command);
@@ -132,6 +137,15 @@ public final class MinecraftTestHarness {
         }
         if (request != null && mc.isPaused()) mc.setScreen(null);
         var server = mc.getSingleplayerServer();
+        if(LOCAL_SERVER && server==null && mc.player!=null) {
+            var commands=List.of(session.project+".open",session.project+".close");
+            if(request!=null) {
+                lastRequest=request.id;lastError="";
+                if("command".equals(request.kind) && commands.contains(request.command)) {mc.player.connection.sendCommand(request.command);lastResult="Sent /"+request.command;}
+                else lastError="Local release test only accepts project open/close commands";
+            }
+            state(session,true,commands,Map.of());return;
+        }
         if (server == null || mc.player == null) { state(session,false,List.of(),Map.of()); return; }
         UUID playerId = mc.player.getUUID();
         Request input = request;

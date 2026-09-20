@@ -1,0 +1,1 @@
+throw new Error('Unused script must not be exported');

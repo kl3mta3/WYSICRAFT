@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "id": "main",
+  "title": "New screen",
+  "size": {
+    "width": 320,
+    "height": 200
+  },
+  "variables": {},
+  "events": {},
+  "elements": []
+}

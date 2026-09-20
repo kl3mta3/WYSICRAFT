@@ -1,0 +1,15 @@
+{
+  "name": "JSON Scroll Panel Demo",
+  "id": "json_scroll_demo",
+  "dependencies": [],
+  "gridSize": 8,
+  "author": "WYSICRAFT",
+  "runtimeVersion": "1.0.0",
+  "schemaVersion": 1,
+  "ui": [
+    "supplies"
+  ],
+  "defaultUi": "supplies",
+  "version": "1.0.0",
+  "snap": true
+}

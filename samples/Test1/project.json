@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "id": "untitled",
+  "name": "Untitled",
+  "author": "",
+  "version": "1.0.0",
+  "runtimeVersion": "1.0.0",
+  "defaultUi": "main",
+  "ui": [
+    "main"
+  ],
+  "dependencies": [],
+  "gridSize": 8,
+  "snap": true
+}

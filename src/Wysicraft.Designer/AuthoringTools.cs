@@ -30,10 +30,11 @@ public partial class MainWindow
         void Insert() { if(editingScript==null) { Log("Select or create a script first."); return; } ScriptEditor.SelectedText=list.SelectedItem+Environment.NewLine; window.Close();ScriptEditor.Focus(); }
         insert.Click+=(_,_)=>Insert(); list.MouseDoubleClick+=(_,_)=>Insert();window.Show();
     }
-    static void FillItemList(ListBox list,string json, Wysicraft.Models.Element? element=null, Action<string>? fire=null) {
-        list.Tag=json;list.Items.Clear();
+    internal static string ItemListStamp(string json,Wysicraft.Models.Element element,IReadOnlyDictionary<string,string>? state) => json+(element.RowTemplate.Length>0 || element.RowElements.Count>0 ? Json.Write(state ?? new Dictionary<string,string>()) : "");
+    void FillItemList(ListBox list,string json, Wysicraft.Models.Element? element=null, Action<string>? fire=null, IReadOnlyDictionary<string,string>? state=null) {
+        list.Tag=element==null?json:ItemListStamp(json,element,state);list.Items.Clear();
         try { int index=0; foreach(var row in ItemRows.Parse(json)) {
-            int selectedIndex=index++; var panel=new DockPanel();
+            int selectedIndex=index++; if(element!=null && (element.RowTemplate.Length>0 || element.RowElements.Count>0)) {list.Items.Add(new ListBoxItem {Content=RenderTemplateRow(element,row,selectedIndex,fire,state),Padding=new Thickness(0),Margin=new Thickness(0),Height=element.RowHeight*Zoom,HorizontalContentAlignment=HorizontalAlignment.Left});continue;} var panel=new DockPanel();
             if(element!=null) foreach(var (label,ev) in new[]{(element.SecondaryLabel,"item_secondary"),(element.PrimaryLabel,"item_primary")}) if(label.Length>0) {var button=new Button {Content=label,MinWidth=65}; DockPanel.SetDock(button,Dock.Right); panel.Children.Add(button);button.Click+=(_,args)=>{element.Text=selectedIndex.ToString();fire?.Invoke(ev);args.Handled=true;};}
             panel.Children.Add(new TextBlock {Text=$"◇ {row.Name}   ×{row.Count}"+(element?.ShowItemId==true?"\n"+row.Item:""),VerticalAlignment=VerticalAlignment.Center});
             list.Items.Add(new ListBoxItem { Content=panel,ToolTip=row.Item,Height=(element?.RowHeight ?? 30)*2,HorizontalContentAlignment=HorizontalAlignment.Stretch,Padding=new Thickness(4) });
@@ -71,3 +72,5 @@ public partial class MainWindow
         });window.ShowDialog();
     }
 }
+
+

@@ -1,0 +1,53 @@
+{
+  "title": "Workshop supplies",
+  "items": [
+    {
+      "quantity": 8,
+      "name": "Oak planks"
+    },
+    {
+      "quantity": 16,
+      "name": "Spruce planks"
+    },
+    {
+      "quantity": 24,
+      "name": "Iron ingots"
+    },
+    {
+      "quantity": 32,
+      "name": "Copper ingots"
+    },
+    {
+      "quantity": 40,
+      "name": "Brass sheets"
+    },
+    {
+      "quantity": 48,
+      "name": "Andesite alloy"
+    },
+    {
+      "quantity": 56,
+      "name": "Shafts"
+    },
+    {
+      "quantity": 64,
+      "name": "Cogwheels"
+    },
+    {
+      "quantity": 72,
+      "name": "Large cogwheels"
+    },
+    {
+      "quantity": 80,
+      "name": "Belts"
+    },
+    {
+      "quantity": 88,
+      "name": "Precision mechanisms"
+    },
+    {
+      "quantity": 96,
+      "name": "Fuel tanks"
+    }
+  ]
+}

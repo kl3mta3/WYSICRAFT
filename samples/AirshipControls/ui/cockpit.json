@@ -1,0 +1,479 @@
+{
+  "schemaVersion": 1,
+  "id": "cockpit",
+  "title": "AIRSHIP / CONTROL DECK",
+  "size": {
+    "width": 320,
+    "height": 200
+  },
+  "variables": {
+    "altitude": "0",
+    "engineRunning": "false"
+  },
+  "events": {},
+  "elements": [
+    {
+      "id": "heading",
+      "name": "",
+      "type": "label",
+      "bounds": {
+        "x": 20,
+        "y": 8,
+        "width": 270,
+        "height": 20
+      },
+      "visible": true,
+      "enabled": true,
+      "tooltip": "",
+      "text": "AIRSHIP CONTROLS",
+      "foreground": "#C5E6F2",
+      "background": "#40464F",
+      "fillEnabled": true,
+      "borderColor": "#697382",
+      "borderWidth": 0,
+      "opacity": 1,
+      "fontScale": 1,
+      "font": "minecraft:default",
+      "bold": false,
+      "italic": false,
+      "underline": false,
+      "textShadow": false,
+      "shadowColor": "#000000",
+      "shadowOpacity": 0.75,
+      "shadowOffsetX": 1,
+      "shadowOffsetY": 1,
+      "shadowBlur": 0,
+      "cornerRadius": 0,
+      "alignment": "left",
+      "texture": "",
+      "item": "minecraft:stone",
+      "value": "0",
+      "minimum": 0,
+      "maximum": 100,
+      "options": [
+        "Option 1",
+        "Option 2"
+      ],
+      "visibleIf": "",
+      "enabledIf": "",
+      "parent": "",
+      "textureX": 0,
+      "textureY": 0,
+      "textureWidth": 256,
+      "textureHeight": 256,
+      "events": {}
+    },
+    {
+      "id": "engine_start",
+      "name": "",
+      "type": "button",
+      "bounds": {
+        "x": 20,
+        "y": 40,
+        "width": 132,
+        "height": 24
+      },
+      "visible": true,
+      "enabled": true,
+      "tooltip": "",
+      "text": "START ENGINE",
+      "foreground": "#FFFFFF",
+      "background": "#40464F",
+      "fillEnabled": true,
+      "borderColor": "#697382",
+      "borderWidth": 0,
+      "opacity": 1,
+      "fontScale": 1,
+      "font": "minecraft:default",
+      "bold": false,
+      "italic": false,
+      "underline": false,
+      "textShadow": false,
+      "shadowColor": "#000000",
+      "shadowOpacity": 0.75,
+      "shadowOffsetX": 1,
+      "shadowOffsetY": 1,
+      "shadowBlur": 0,
+      "cornerRadius": 0,
+      "alignment": "center",
+      "texture": "",
+      "item": "minecraft:stone",
+      "value": "0",
+      "minimum": 0,
+      "maximum": 100,
+      "options": [
+        "Option 1",
+        "Option 2"
+      ],
+      "visibleIf": "",
+      "enabledIf": "",
+      "parent": "",
+      "textureX": 0,
+      "textureY": 0,
+      "textureWidth": 256,
+      "textureHeight": 256,
+      "events": {
+        "click": {
+          "client": {
+            "scriptEngine": "standard",
+            "actions": [
+              {
+                "type": "set_text",
+                "target": "status",
+                "value": "Starting engine..."
+              },
+              {
+                "type": "set_variable",
+                "target": "engineRunning",
+                "value": "true"
+              }
+            ],
+            "script": "",
+            "function": ""
+          },
+          "server": {
+            "scriptEngine": "standard",
+            "actions": [
+              {
+                "type": "command",
+                "target": "",
+                "value": "say Engine start requested"
+              }
+            ],
+            "script": "",
+            "function": ""
+          }
+        }
+      }
+    },
+    {
+      "id": "engine_stop",
+      "name": "",
+      "type": "button",
+      "bounds": {
+        "x": 168,
+        "y": 40,
+        "width": 132,
+        "height": 24
+      },
+      "visible": true,
+      "enabled": true,
+      "tooltip": "",
+      "text": "STOP ENGINE",
+      "foreground": "#FFFFFF",
+      "background": "#40464F",
+      "fillEnabled": true,
+      "borderColor": "#697382",
+      "borderWidth": 0,
+      "opacity": 1,
+      "fontScale": 1,
+      "font": "minecraft:default",
+      "bold": false,
+      "italic": false,
+      "underline": false,
+      "textShadow": false,
+      "shadowColor": "#000000",
+      "shadowOpacity": 0.75,
+      "shadowOffsetX": 1,
+      "shadowOffsetY": 1,
+      "shadowBlur": 0,
+      "cornerRadius": 0,
+      "alignment": "center",
+      "texture": "",
+      "item": "minecraft:stone",
+      "value": "0",
+      "minimum": 0,
+      "maximum": 100,
+      "options": [
+        "Option 1",
+        "Option 2"
+      ],
+      "visibleIf": "",
+      "enabledIf": "",
+      "parent": "",
+      "textureX": 0,
+      "textureY": 0,
+      "textureWidth": 256,
+      "textureHeight": 256,
+      "events": {
+        "click": {
+          "client": {
+            "scriptEngine": "standard",
+            "actions": [
+              {
+                "type": "set_text",
+                "target": "status",
+                "value": "Engine stopped"
+              },
+              {
+                "type": "set_variable",
+                "target": "engineRunning",
+                "value": "false"
+              }
+            ],
+            "script": "",
+            "function": ""
+          },
+          "server": {
+            "scriptEngine": "standard",
+            "actions": [
+              {
+                "type": "command",
+                "target": "",
+                "value": "say Engine stop requested"
+              }
+            ],
+            "script": "",
+            "function": ""
+          }
+        }
+      }
+    },
+    {
+      "id": "status",
+      "name": "",
+      "type": "label",
+      "bounds": {
+        "x": 20,
+        "y": 82,
+        "width": 270,
+        "height": 20
+      },
+      "visible": true,
+      "enabled": true,
+      "tooltip": "",
+      "text": "Engine offline",
+      "foreground": "#C5E6F2",
+      "background": "#40464F",
+      "fillEnabled": true,
+      "borderColor": "#697382",
+      "borderWidth": 0,
+      "opacity": 1,
+      "fontScale": 1,
+      "font": "minecraft:default",
+      "bold": false,
+      "italic": false,
+      "underline": false,
+      "textShadow": false,
+      "shadowColor": "#000000",
+      "shadowOpacity": 0.75,
+      "shadowOffsetX": 1,
+      "shadowOffsetY": 1,
+      "shadowBlur": 0,
+      "cornerRadius": 0,
+      "alignment": "left",
+      "texture": "",
+      "item": "minecraft:stone",
+      "value": "0",
+      "minimum": 0,
+      "maximum": 100,
+      "options": [
+        "Option 1",
+        "Option 2"
+      ],
+      "visibleIf": "",
+      "enabledIf": "",
+      "parent": "",
+      "textureX": 0,
+      "textureY": 0,
+      "textureWidth": 256,
+      "textureHeight": 256,
+      "events": {}
+    },
+    {
+      "id": "altitude",
+      "name": "",
+      "type": "label",
+      "bounds": {
+        "x": 20,
+        "y": 110,
+        "width": 270,
+        "height": 20
+      },
+      "visible": true,
+      "enabled": true,
+      "tooltip": "",
+      "text": "Altitude: ${altitude}",
+      "foreground": "#C5E6F2",
+      "background": "#40464F",
+      "fillEnabled": true,
+      "borderColor": "#697382",
+      "borderWidth": 0,
+      "opacity": 1,
+      "fontScale": 1,
+      "font": "minecraft:default",
+      "bold": false,
+      "italic": false,
+      "underline": false,
+      "textShadow": false,
+      "shadowColor": "#000000",
+      "shadowOpacity": 0.75,
+      "shadowOffsetX": 1,
+      "shadowOffsetY": 1,
+      "shadowBlur": 0,
+      "cornerRadius": 0,
+      "alignment": "left",
+      "texture": "",
+      "item": "minecraft:stone",
+      "value": "0",
+      "minimum": 0,
+      "maximum": 100,
+      "options": [
+        "Option 1",
+        "Option 2"
+      ],
+      "visibleIf": "",
+      "enabledIf": "",
+      "parent": "",
+      "textureX": 0,
+      "textureY": 0,
+      "textureWidth": 256,
+      "textureHeight": 256,
+      "events": {}
+    },
+    {
+      "id": "navigation",
+      "name": "",
+      "type": "button",
+      "bounds": {
+        "x": 20,
+        "y": 154,
+        "width": 132,
+        "height": 24
+      },
+      "visible": true,
+      "enabled": true,
+      "tooltip": "",
+      "text": "NAVIGATION",
+      "foreground": "#FFFFFF",
+      "background": "#40464F",
+      "fillEnabled": true,
+      "borderColor": "#697382",
+      "borderWidth": 0,
+      "opacity": 1,
+      "fontScale": 1,
+      "font": "minecraft:default",
+      "bold": false,
+      "italic": false,
+      "underline": false,
+      "textShadow": false,
+      "shadowColor": "#000000",
+      "shadowOpacity": 0.75,
+      "shadowOffsetX": 1,
+      "shadowOffsetY": 1,
+      "shadowBlur": 0,
+      "cornerRadius": 0,
+      "alignment": "center",
+      "texture": "",
+      "item": "minecraft:stone",
+      "value": "0",
+      "minimum": 0,
+      "maximum": 100,
+      "options": [
+        "Option 1",
+        "Option 2"
+      ],
+      "visibleIf": "",
+      "enabledIf": "",
+      "parent": "",
+      "textureX": 0,
+      "textureY": 0,
+      "textureWidth": 256,
+      "textureHeight": 256,
+      "events": {
+        "click": {
+          "client": {
+            "scriptEngine": "standard",
+            "actions": [
+              {
+                "type": "open_ui",
+                "target": "",
+                "value": "navigation"
+              }
+            ],
+            "script": "",
+            "function": ""
+          },
+          "server": {
+            "scriptEngine": "standard",
+            "actions": [],
+            "script": "",
+            "function": ""
+          }
+        }
+      }
+    },
+    {
+      "id": "close",
+      "name": "",
+      "type": "button",
+      "bounds": {
+        "x": 168,
+        "y": 154,
+        "width": 132,
+        "height": 24
+      },
+      "visible": true,
+      "enabled": true,
+      "tooltip": "",
+      "text": "CLOSE",
+      "foreground": "#FFFFFF",
+      "background": "#40464F",
+      "fillEnabled": true,
+      "borderColor": "#697382",
+      "borderWidth": 0,
+      "opacity": 1,
+      "fontScale": 1,
+      "font": "minecraft:default",
+      "bold": false,
+      "italic": false,
+      "underline": false,
+      "textShadow": false,
+      "shadowColor": "#000000",
+      "shadowOpacity": 0.75,
+      "shadowOffsetX": 1,
+      "shadowOffsetY": 1,
+      "shadowBlur": 0,
+      "cornerRadius": 0,
+      "alignment": "center",
+      "texture": "",
+      "item": "minecraft:stone",
+      "value": "0",
+      "minimum": 0,
+      "maximum": 100,
+      "options": [
+        "Option 1",
+        "Option 2"
+      ],
+      "visibleIf": "",
+      "enabledIf": "",
+      "parent": "",
+      "textureX": 0,
+      "textureY": 0,
+      "textureWidth": 256,
+      "textureHeight": 256,
+      "events": {
+        "click": {
+          "client": {
+            "scriptEngine": "standard",
+            "actions": [
+              {
+                "type": "close_ui",
+                "target": "",
+                "value": ""
+              }
+            ],
+            "script": "",
+            "function": ""
+          },
+          "server": {
+            "scriptEngine": "standard",
+            "actions": [],
+            "script": "",
+            "function": ""
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "id": "airship_controls",
+  "name": "Airship Controls",
+  "author": "WYSICRAFT",
+  "version": "1.0.0",
+  "runtimeVersion": "1.0.0",
+  "defaultUi": "cockpit",
+  "ui": [
+    "cockpit",
+    "navigation"
+  ],
+  "dependencies": [],
+  "gridSize": 8,
+  "snap": true
+}

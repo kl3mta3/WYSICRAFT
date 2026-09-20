@@ -24,7 +24,6 @@ dotnet run --project src/Wysicraft.Designer
 dotnet run --project tests/Wysicraft.Tests
 ```
 
-The test executable runs 14 focused checks and regenerates the sample project and portable pack.
 
 Build the runtime with `JAVA_HOME` pointing to your Java 21 installation:
 
@@ -39,7 +38,7 @@ On Unix, use `./gradlew build`. The runtime JAR is `wysicraft-runtime/build/libs
 dotnet publish src/Wysicraft.Designer -c Release -r win-x64 --self-contained false -o artifacts/designer
 ```
 
-## First interface
+## Getting started
 
 1. Launch Designer. Choose **File → New Project**, enter `Airship Controls`, and set pack ID `airship_controls` in Project Settings.
 2. Use **Screen / Variables** to rename `main` to `cockpit`. The default UI follows the rename.
@@ -159,4 +158,4 @@ KubeJS Server scripts now have a separate **Export for KubeJS** installation ZIP
 
 GUI image paths are automatic: `assets/<project_id>/textures/gui/<element_type>/<image_name>.png`. Assigned skins use the control type; generic image imports use `image`. Existing projects remain readable, and saves/exports upgrade older asset layouts. Minecraft resource packs can override the canonical paths.
 
-**Minecraft test** now launches a reusable real Minecraft 1.21.1 / NeoForge / KubeJS development instance, with `.open`, `.close`, a Globals dropdown, and game logs. See [setup and controls](docs/MINECRAFT_TEST.md). The game opens in its own window and does not automatically open your project UI.
+**Minecraft test** launches a reusable real Minecraft 1.21.1 / NeoForge / KubeJS development instance, with `.open`, `.close`, a Globals dropdown, and game logs. See [setup and controls](docs/MINECRAFT_TEST.md). The game opens in its own window and does not automatically open your project UI.

@@ -2,7 +2,7 @@ plugins {
     id 'java-library'
     id 'net.neoforged.moddev' version '2.0.146'
 }
-version = '1.3.0'
+version = '1.4.0'
 group = 'com.wysicraft.runtime'
 base { archivesName = 'wysicraft' }
 java.toolchain.languageVersion = JavaLanguageVersion.of(21)
@@ -20,12 +20,21 @@ neoForge {
                 if (project.hasProperty('wysicraftExportTest')) sourceSet = sourceSets.exportTest
                 gameDirectory = project.file(findProperty('wysicraftGameDir') ?: 'run')
                 systemProperty 'wysicraft.testHarness', 'true'
+                if (project.hasProperty('wysicraftLocalServer')) systemProperty 'wysicraft.localTestServer', '127.0.0.1:25579'
                 jvmArgument '-Xmx4G'
                 programArgument '--username'
                 programArgument 'WysicraftTester'
             }
         }
         server { server(); programArgument '--nogui' }
+        if (project.hasProperty('wysicraftLocalServer')) {
+            releaseServer {
+                server(); programArgument '--nogui'
+                sourceSet = sourceSets.exportTest
+                gameDirectory = project.file(findProperty('wysicraftServerDir') ?: 'run-release-server')
+                jvmArgument '-Xmx2G'
+            }
+        }
     }
     if (!project.hasProperty('wysicraftExportTest')) { mods { wysicraft { sourceSet(sourceSets.main) } } }
 }
@@ -36,6 +45,13 @@ if (project.hasProperty('wysicraftTest')) {
 test { useJUnitPlatform() }
 
 tasks.withType(JavaCompile).configureEach { options.encoding = 'UTF-8' }
+tasks.named('processResources') {
+    from('../LICENSE') { into 'META-INF/licenses'; rename { 'WYSICRAFT-LICENSE.txt' } }
+    from('../docs/third-party') {
+        include 'Graal*', 'SDK-LICENSE.txt', 'sdk-LICENSE.txt', 'truffle-LICENSE.txt', 'regex-LICENSE.txt'
+        into 'META-INF/licenses'
+    }
+}
 
 dependencies {
     compileOnly 'dev.latvian.mods:kubejs-neoforge:2101.7.2-build.377'
@@ -44,3 +60,4 @@ dependencies {
      'org.graalvm.truffle:truffle-api', 'org.graalvm.sdk:collections', 'org.graalvm.sdk:nativeimage',
      'org.graalvm.sdk:word', 'org.graalvm.shadowed:icu4j'].each { jarJar(implementation(it + ':24.1.2')); if (!project.hasProperty('wysicraftExportTest')) additionalRuntimeClasspath(it + ':24.1.2') }
 }
+

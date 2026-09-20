@@ -1,3 +1,4 @@
+using Wysicraft.Core;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -14,15 +15,11 @@ public partial class MainWindow
     bool layersDragging;
     ListBoxItem? layerDropMarker;
     DateTime nextLayerScroll;
-    void SetLayerOrder(List<Element> front) {
-        var ordered=new List<Element>();var groups=new HashSet<string>();
-        foreach(var e in front) {if(e.LayerGroup.Length==0)ordered.Add(e);else if(groups.Add(e.LayerGroup))ordered.AddRange(front.Where(x=>x.LayerGroup==e.LayerGroup));}
-        ui.Elements=ordered.AsEnumerable().Reverse().ToList();
-    }
+    void SetLayerOrder(List<Element> front) => ui.Elements=LayerGroups.Ordered(ui,front).AsEnumerable().Reverse().ToList();
     IEnumerable<string> LayerRowIds(string key) => key.StartsWith(GroupPrefix)
-        ? ui.Elements.Where(e=>e.LayerGroup==key[GroupPrefix.Length..]).Select(e=>e.Id)
+        ? ui.Elements.Where(e=>LayerGroups.Contains(ui,key[GroupPrefix.Length..],e.LayerGroup)).Select(e=>e.Id)
         : new[]{key};
-    string UniqueLayerGroup(string name) { string result=name; int number=2; while(ui.Elements.Any(e=>e.LayerGroup==result)) result=name+" "+number++; return result; }
+    string UniqueLayerGroup(string name) { string result=name; int number=2; while(ui.GroupParents.ContainsKey(result) || ui.Elements.Any(e=>e.LayerGroup==result)) result=name+" "+number++; return result; }
     void GroupSelected() {
         if(selected.Count<2) {Log("Select at least two layers to group.");return;}
         var name=Prompt("Group layers","Group name",UniqueLayerGroup("Group"));
@@ -30,27 +27,39 @@ public partial class MainWindow
     }
     void SetLayerGroup(string name) {
         name=name.Trim(); if(name.Length is <1 or >64 || name.Any(char.IsControl)) throw new InvalidOperationException("Use a group name of 1–64 characters.");
-        if(ui.Elements.Any(e=>e.LayerGroup==name && !selected.Contains(e.Id))) throw new InvalidOperationException("That group already exists. Drag items into it instead.");
+        if(ui.GroupParents.ContainsKey(name) || ui.Elements.Any(e=>LayerGroups.Path(ui,e.LayerGroup).Contains(name))) throw new InvalidOperationException("That group already exists. Drag items into it instead.");
         Change(); var front=ui.Elements.AsEnumerable().Reverse().ToList(); var moved=front.Where(e=>selected.Contains(e.Id)).ToList();
         int index=front.FindIndex(e=>selected.Contains(e.Id)); if(index<0)return;
-        front.RemoveAll(e=>selected.Contains(e.Id)); foreach(var e in moved)e.LayerGroup=name;
+        var roots=SelectedGroupRoots(selected);
+        front.RemoveAll(e=>selected.Contains(e.Id)); foreach(var e in moved) if(!roots.Any(g=>LayerGroups.Contains(ui,g,e.LayerGroup)))e.LayerGroup=name;
+        foreach(var group in roots)ui.GroupParents[group]=name;ui.GroupParents.TryAdd(name,"");
         front.InsertRange(Math.Min(index,front.Count),moved); SetLayerOrder(front); collapsedGroups.Remove(name);
         Draw(); RefreshInspector();
     }
+    List<string> SelectedGroupRoots(IEnumerable<string> selection) {
+        var ids=selection.ToHashSet();var groups=ui.Elements.SelectMany(e=>LayerGroups.Path(ui,e.LayerGroup)).Distinct().Where(g=>ui.Elements.Where(e=>LayerGroups.Contains(ui,g,e.LayerGroup)).All(e=>ids.Contains(e.Id))).ToHashSet();
+        return groups.Where(g=>!LayerGroups.Path(ui,g).Skip(1).Any(groups.Contains)).ToList();
+    }
+    void RenameLayerGroup(string group,string name) {
+        name=name.Trim();if(name==group)return;if(name.Length is <1 or >64 || name.Any(char.IsControl) || ui.GroupParents.ContainsKey(name) || ui.Elements.Any(e=>e.LayerGroup==name))throw new InvalidOperationException("Choose a unique group name (1–64 characters)");
+        Change();string parent=ui.GroupParents.GetValueOrDefault(group,"");ui.GroupParents.Remove(group);ui.GroupParents[name]=parent;
+        foreach(var key in ui.GroupParents.Keys.ToArray())if(ui.GroupParents[key]==group)ui.GroupParents[key]=name;
+        foreach(var e in ui.Elements)if(e.LayerGroup==group)e.LayerGroup=name;Draw();RefreshInspector();
+    }
     void UngroupSelected() {
-        var names=ui.Elements.Where(e=>selected.Contains(e.Id) && e.LayerGroup.Length>0).Select(e=>e.LayerGroup).ToHashSet();
-        if(names.Count==0)return; Change(); foreach(var e in ui.Elements.Where(e=>names.Contains(e.LayerGroup))) e.LayerGroup="";
-        Draw(); RefreshInspector();
+        var roots=SelectedGroupRoots(selected);if(roots.Count==0)roots=ui.Elements.Where(e=>selected.Contains(e.Id) && e.LayerGroup.Length>0).Select(e=>e.LayerGroup).Distinct().ToList();
+        if(roots.Count==0)return;UngroupLayers(roots);
+    }
+    void UngroupLayers(IEnumerable<string> roots) {Change();foreach(var group in roots) {string parent=ui.GroupParents.GetValueOrDefault(group,"");foreach(var e in ui.Elements.Where(e=>e.LayerGroup==group))e.LayerGroup=parent;foreach(var key in ui.GroupParents.Keys.ToArray())if(ui.GroupParents[key]==group)ui.GroupParents[key]=parent;ui.GroupParents.Remove(group);}Draw();RefreshInspector();
     }
     void RefreshLayerRows() {
         syncingLayers=true;
         try {
             var keys=new List<string>(); var seen=new HashSet<string>();
-            foreach(var e in ui.Elements.AsEnumerable().Reverse()) {
-                if(e.LayerGroup.Length==0) {keys.Add(e.Id);continue;}
-                if(!seen.Add(e.LayerGroup))continue;
-                keys.Add(GroupPrefix+e.LayerGroup);
-                if(!collapsedGroups.Contains(e.LayerGroup)) keys.AddRange(ui.Elements.AsEnumerable().Reverse().Where(x=>x.LayerGroup==e.LayerGroup).Select(x=>x.Id));
+            foreach(var e in LayerGroups.Ordered(ui,ui.Elements.AsEnumerable().Reverse().ToList())) {
+                var path=LayerGroups.Path(ui,e.LayerGroup).Reverse().ToArray();bool hidden=false;
+                foreach(var group in path) {if(seen.Add(group))keys.Add(GroupPrefix+group);if(collapsedGroups.Contains(group)){hidden=true;break;}}
+                if(!hidden)keys.Add(e.Id);
             }
             if(!Layers.Items.Cast<ListBoxItem>().Select(i=>(string)i.Tag).SequenceEqual(keys)) {
                 Layers.Items.Clear(); foreach(string key in keys) Layers.Items.Add(new ListBoxItem {Tag=key,Padding=new Thickness(6,4,2,4)});
@@ -63,13 +72,14 @@ public partial class MainWindow
                     var toggle=new Button {Content=collapsedGroups.Contains(group)?"▸":"▾",Padding=new Thickness(2,0,2,0),Margin=new Thickness(0),ToolTip="Expand / collapse group"};
                     toggle.Click+=(_,args)=> {if(!collapsedGroups.Add(group))collapsedGroups.Remove(group);RefreshLayers();args.Handled=true;};
                     row.Children.Add(toggle); row.Children.Add(new TextBlock {Text=group+" ("+ids.Count+")",FontWeight=FontWeights.Bold,VerticalAlignment=VerticalAlignment.Center});
-                    item.Content=row; item.IsSelected=false; row.Opacity=ids.All(selected.Contains)?1:0.8; item.ToolTip="Drag to reorder the group. Right-click for group actions.";
+                    row.Margin=new Thickness((LayerGroups.Path(ui,group).Count()-1)*12,0,0,0); item.Content=row; item.IsSelected=false; row.Opacity=ids.All(selected.Contains)?1:0.8; item.ToolTip="Drag to reorder the group. Right-click for group actions.";
                     var menu=new ContextMenu();
                     void Add(string title,Action action) {var entry=new MenuItem {Header=title};entry.Click+=(_,_)=>Guard(()=>{selected.Clear();selected.UnionWith(ids);action();});menu.Items.Add(entry);}
-                    Add("Rename group",()=>{var name=Prompt("Rename group","Group name",group);if(name!=null)SetLayerGroup(name);});
-                    Add("Ungroup",UngroupSelected);Add("Duplicate",Duplicate);Add("Delete group and elements",Delete); item.ContextMenu=menu;
+                    Add("Rename group",()=>{var name=Prompt("Rename group","Group name",group);if(name!=null)RenameLayerGroup(group,name);});
+                    Add("Move group to top level",()=>{Change();ui.GroupParents[group]="";SetLayerOrder(ui.Elements.AsEnumerable().Reverse().ToList());Draw();RefreshInspector();});
+                    Add("Ungroup",()=>UngroupLayers(new[]{group}));Add("Duplicate",Duplicate);Add("Delete group and elements",Delete); item.ContextMenu=menu;
                 } else {
-                    var e=ui.Elements.First(e=>e.Id==key); item.Content=(e.LayerGroup.Length>0?"    ":"")+(e.Visible?"":"[hidden] ")+e.Id+" · "+e.Type;
+                    var e=ui.Elements.First(e=>e.Id==key); item.Content=new string(' ',LayerGroups.Path(ui,e.LayerGroup).Count()*3)+(e.Visible?"":"[hidden] ")+e.Id+" · "+e.Type;
                     item.ToolTip=e.Name.Length>0?e.Name:e.Text; item.IsSelected=selected.Contains(e.Id); item.ContextMenu=ElementMenu(e);
                 }
             }
@@ -118,13 +128,16 @@ public partial class MainWindow
         var front=ui.Elements.AsEnumerable().Reverse().ToList(); var moved=front.Where(e=>moving.Contains(e.Id)).ToList(); if(moved.Count==0)return;
         bool wholeGroup=moved.Any(e=>e.LayerGroup.Length>0 && ui.Elements.Where(x=>x.LayerGroup==e.LayerGroup).All(x=>moving.Contains(x.Id)));
         string destination=target==null?"":target.StartsWith(GroupPrefix)?target[GroupPrefix.Length..]:ui.Elements.First(e=>e.Id==target).LayerGroup;
-        Change(); front.RemoveAll(e=>moving.Contains(e.Id));
+        var roots=SelectedGroupRoots(moving);
+        if(target?.StartsWith(GroupPrefix)==true && roots.Any(g=>LayerGroups.Contains(ui,g,destination)))throw new InvalidOperationException("Cannot move a group into itself or a descendant");
+        Change(); if(target==null || target.StartsWith(GroupPrefix))foreach(var group in roots)ui.GroupParents[group]=destination;
+        front.RemoveAll(e=>moving.Contains(e.Id));
         int index=front.Count;
         if(target!=null) {
-            if(target.StartsWith(GroupPrefix) || wholeGroup && destination.Length>0) {int first=front.FindIndex(e=>e.LayerGroup==destination);int last=front.FindLastIndex(e=>e.LayerGroup==destination);index=after?last+1:first;}
+            if(target.StartsWith(GroupPrefix) || wholeGroup && destination.Length>0) {int first=front.FindIndex(e=>LayerGroups.Contains(ui,destination,e.LayerGroup));int last=front.FindLastIndex(e=>LayerGroups.Contains(ui,destination,e.LayerGroup));index=after?last+1:first;}
             else {index=front.FindIndex(e=>e.Id==target)+(after?1:0);}
         }
-        if(!wholeGroup) foreach(var e in moved)e.LayerGroup=destination;
+        foreach(var e in moved)if(!roots.Any(g=>LayerGroups.Contains(ui,g,e.LayerGroup)))e.LayerGroup=destination;
         front.InsertRange(Math.Clamp(index,0,front.Count),moved);SetLayerOrder(front); selected.Clear();selected.UnionWith(ids);
         Draw();RefreshInspector();
     }
@@ -147,3 +160,5 @@ public partial class MainWindow
         dirty=false;System.IO.File.WriteAllText(output,"PASS: grouping, order, canvas/Alt selection, drop into group, undo, independent duplication, save/load and ungroup.");
     }
 }
+
+

@@ -6,7 +6,7 @@ namespace Wysicraft.Packaging;
 
 public static class Distribution
 {
-    public const string RuntimeVersion="1.3.0";
+    public const string RuntimeVersion="1.4.0";
     public static byte[] ProjectJar(Project source, bool clientOnly=false)
     {
         var project=Json.Clone(source);
@@ -75,3 +75,4 @@ public static class Distribution
     public static void Write(string path,byte[] bytes) { string temp=path+"."+Guid.NewGuid().ToString("N")+".tmp"; try { File.WriteAllBytes(temp,bytes); File.Move(temp,path,true); } finally { if(File.Exists(temp)) File.Delete(temp); } }
     static byte[] Zip(Dictionary<string,byte[]> files) { using var buffer=new MemoryStream(); using(var zip=new ZipArchive(buffer,ZipArchiveMode.Create,true)) foreach(var file in files) { using var output=zip.CreateEntry(file.Key,CompressionLevel.Optimal).Open(); output.Write(file.Value); } return buffer.ToArray(); }
 }
+

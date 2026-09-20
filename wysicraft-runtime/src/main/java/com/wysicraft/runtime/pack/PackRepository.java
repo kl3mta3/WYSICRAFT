@@ -89,7 +89,7 @@ public final class PackRepository {
         }
         Manifest manifest = Models.JSON.fromJson(text(files, files.containsKey("manifest.json") ? "manifest.json" : "project.json"), Manifest.class);
         require(manifest != null && manifest.schemaVersion == 1, "Unsupported manifest schema");
-        require(id(manifest.id), "Invalid pack ID"); compareVersion(manifest.version,"1.0.0"); require(compareVersion(manifest.runtimeVersion,"1.3.0") <= 0, "Runtime version too old");
+        require(id(manifest.id), "Invalid pack ID"); compareVersion(manifest.version,"1.0.0"); require(compareVersion(manifest.runtimeVersion,"1.4.0") <= 0, "Runtime version too old");
         require(manifest.ui != null && !manifest.ui.isEmpty() && manifest.ui.size() <= 128, "Invalid UI list");
         Map<String,Ui> screens = new LinkedHashMap<>();
         for (String id : manifest.ui) { require(id(id), "Invalid UI ID"); Ui ui = Models.JSON.fromJson(text(files, "ui/" + id + ".json"), Ui.class); require(ui != null && id.equals(ui.id), "UI ID mismatch"); require(screens.putIfAbsent(id, ui) == null, "Duplicate UI ID"); }
@@ -111,6 +111,9 @@ public final class PackRepository {
         return result;
     }
     private static void validate(Ui ui, Manifest manifest, Map<String,Ui> screens, Map<String,byte[]> files) {
+        validate(ui,manifest,screens,files,screens.values().stream().flatMap(s->s.elements.stream()).anyMatch(e->e.rowTemplate.equals(ui.id)));
+    }
+    private static void validate(Ui ui, Manifest manifest, Map<String,Ui> screens, Map<String,byte[]> files,boolean template) {
         require(ui.schemaVersion == 1, ui.id + ": unsupported schema"); require(ui.size.width >= 16 && ui.size.width <= 4096 && ui.size.height >= 16 && ui.size.height <= 4096, "Invalid canvas"); require(ui.elements.size() <= 512, "Too many elements");
         Set<String> ids = new HashSet<>();
         for (Element e : ui.elements) {
@@ -123,10 +126,11 @@ public final class PackRepository {
             require(e.borderColor.matches("#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?") && e.shadowColor.matches("#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?"), location + "invalid border/shadow color");
             require(e.foreground.matches("#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?") && e.background.matches("#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?"), location + "invalid color");
             Expressions.evaluate(e.visibleIf, ui.variables); Expressions.evaluate(e.enabledIf, ui.variables);
-            if (!e.parent.isEmpty()) { Element p = ui.element(e.parent); require(p != null && p != e && p.parent.isEmpty() && (p.type.equals("panel") || p.type.equals("scroll_panel")), location + "invalid parent"); }
+            com.wysicraft.runtime.model.ContainerTree.ancestors(ui,e);
             if (!e.texture.isEmpty()) { require(resource(e.texture), location + "invalid resource"); if (e.texture.startsWith(manifest.id + ":")) require(textureFile(new Loaded(manifest,Map.of(),files),e.texture) != null, location + "missing texture"); }
             require(e.rowHeight>=24 && e.rowHeight<=128 && e.primaryLabel.length()<=24 && e.secondaryLabel.length()<=24, location+"invalid row template");
-            if (e.type.equals("item")) require(resource(e.item), location + "invalid item"); if(e.type.equals("item_list")) com.wysicraft.runtime.model.ItemRows.parse(e.value);
+            if (e.type.equals("item")) require(resource(e.item) || template && e.item.equals("${row.item}"), location + "invalid item"); if(e.type.equals("item_list")) com.wysicraft.runtime.model.ItemRows.parse(e.value);
+            if(!e.rowElements.isEmpty()) { require(e.type.equals("item_list"),"Row template requires Item List"); com.wysicraft.runtime.model.RowTemplates.check(e); var row=com.wysicraft.runtime.model.RowTemplates.layout(e); validate(row,manifest,screens,files,true); }
             validateEvents(e.events, events(e.type), location, ui, screens, files);
         }
         validateEvents(ui.events, Set.of("open","close"), ui.id + ": ", ui, screens, files);
@@ -151,3 +155,5 @@ public final class PackRepository {
         }
     }
 }
+
+

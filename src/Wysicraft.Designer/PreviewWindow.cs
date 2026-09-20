@@ -73,11 +73,19 @@ public partial class MainWindow
             var scroll = new ScrollViewer { HorizontalScrollBarVisibility = ScrollBarVisibility.Auto, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Content = canvas }; layout.Children.Add(scroll);
             canvas.PreviewMouseWheel += (_, args) => {
                 var point = args.GetPosition(canvas);
-                var panel = screen.Elements.LastOrDefault(e => e.Type == "scroll_panel" && e.Visible && e.Enabled && Expressions.Evaluate(e.VisibleIf, state) && Expressions.Evaluate(e.EnabledIf, state) && point.X >= e.Bounds.X * Zoom && point.X < (e.Bounds.X + e.Bounds.Width) * Zoom && point.Y >= e.Bounds.Y * Zoom && point.Y < (e.Bounds.Y + e.Bounds.Height) * Zoom);
-                if (panel == null) return;
-                double bottom = screen.Elements.Where(e => e.Parent == panel.Id && e.Visible).Select(e => e.Bounds.Y + e.Bounds.Height).DefaultIfEmpty(panel.Bounds.Y + panel.Bounds.Height).Max();
-                scrollOffsets[panel.Id] = Math.Clamp(scrollOffsets.GetValueOrDefault(panel.Id) - args.Delta / 120d * 20, 0, Math.Max(0, bottom - panel.Bounds.Y - panel.Bounds.Height));
-                args.Handled = true; Refresh();
+                bool Hit(Element e) => point.X>=e.Bounds.X*Zoom && point.X<(e.Bounds.X+e.Bounds.Width)*Zoom && point.Y>=ContainerTree.Top(screen,e,scrollOffsets)*Zoom && point.Y<(ContainerTree.Top(screen,e,scrollOffsets)+e.Bounds.Height)*Zoom;
+                var panels=screen.Elements.AsEnumerable().Reverse().Where(e=>e.Type is "scroll_panel" or "item_list" && e.Visible && e.Enabled && Expressions.Evaluate(e.VisibleIf,state) && Expressions.Evaluate(e.EnabledIf,state) && Hit(e) && ContainerTree.Ancestors(screen,e).All(p=>p.Visible && p.Enabled && Expressions.Evaluate(p.VisibleIf,state) && Expressions.Evaluate(p.EnabledIf,state) && Hit(p))).OrderByDescending(e=>ContainerTree.Ancestors(screen,e).Count());
+                foreach(var panel in panels) {
+                    if(panel.Type=="item_list" && controls.TryGetValue(panel.Id,out var pair)) {
+                        var queue=new Queue<DependencyObject>();queue.Enqueue(pair.Control);ScrollViewer? viewer=null;
+                        while(queue.Count>0) {var node=queue.Dequeue();if(node is ScrollViewer found){viewer=found;break;}for(int i=0;i<VisualTreeHelper.GetChildrenCount(node);i++)queue.Enqueue(VisualTreeHelper.GetChild(node,i));}
+                        if(viewer==null)continue;double next=Math.Clamp(viewer.VerticalOffset-args.Delta/120d*24*Zoom,0,viewer.ScrollableHeight);
+                        if(next==viewer.VerticalOffset)continue;viewer.ScrollToVerticalOffset(next);args.Handled=true;return;
+                    }
+                    double bottom=screen.Elements.Where(e=>e.Parent==panel.Id && e.Visible).Select(e=>e.Bounds.Y+e.Bounds.Height).DefaultIfEmpty(panel.Bounds.Y+panel.Bounds.Height).Max();
+                    double offset=Math.Clamp(scrollOffsets.GetValueOrDefault(panel.Id)-args.Delta/120d*20,0,Math.Max(0,bottom-panel.Bounds.Y-panel.Bounds.Height));
+                    if(offset==scrollOffsets.GetValueOrDefault(panel.Id))continue;scrollOffsets[panel.Id]=offset;args.Handled=true;Refresh();return;
+                }
             };
             Window.Closing += (_, args) => { if (!closed) { args.Cancel = true; closing ??= CloseAsync(); } };
             Window.Closed += (_, _) => { closed = true; pending.Clear(); };
@@ -120,22 +128,22 @@ public partial class MainWindow
                     if (!controls.TryGetValue(element.Id, out var pair)) continue;
                     var widget = pair.Control; var display = pair.Display;
                     display.Text = Expressions.Bind(element.Text, state); display.Value = element.Value; display.Texture = element.Texture; display.Item = element.Item;
-                    var parent = screen.Elements.FirstOrDefault(e => e.Id == element.Parent);
-                    double top = element.Bounds.Y - (parent?.Type == "scroll_panel" ? scrollOffsets.GetValueOrDefault(parent.Id) : 0);
+                    var parents = ContainerTree.Ancestors(screen,element).ToArray();
+                    double top = ContainerTree.Top(screen,element,scrollOffsets);
                     Canvas.SetTop(widget, top * Zoom);
-                    if (parent != null) {
+                    {
                         var bounds = new Rect(element.Bounds.X * Zoom, top * Zoom, element.Bounds.Width * Zoom, element.Bounds.Height * Zoom);
-                        bounds.Intersect(new Rect(parent.Bounds.X * Zoom, parent.Bounds.Y * Zoom, parent.Bounds.Width * Zoom, parent.Bounds.Height * Zoom));
+                        foreach(var parent in parents) bounds.Intersect(new Rect(parent.Bounds.X * Zoom, ContainerTree.Top(screen,parent,scrollOffsets) * Zoom, parent.Bounds.Width * Zoom, parent.Bounds.Height * Zoom));
                         widget.Clip = new RectangleGeometry(bounds.IsEmpty ? new Rect(0, 0, 0, 0) : new Rect(bounds.X - element.Bounds.X * Zoom, bounds.Y - top * Zoom, bounds.Width, bounds.Height));
                     }
-                    widget.Visibility = element.Visible && Expressions.Evaluate(element.VisibleIf, state) && (parent == null || parent.Visible && Expressions.Evaluate(parent.VisibleIf, state)) ? Visibility.Visible : Visibility.Collapsed;
-                    widget.IsEnabled = element.Enabled && Expressions.Evaluate(element.EnabledIf, state) && (parent == null || parent.Enabled && Expressions.Evaluate(parent.EnabledIf, state)); widget.Opacity = element.Opacity;
+                    widget.Visibility = element.Visible && Expressions.Evaluate(element.VisibleIf, state) && parents.All(parent=>parent.Visible && Expressions.Evaluate(parent.VisibleIf,state)) ? Visibility.Visible : Visibility.Collapsed;
+                    widget.IsEnabled = element.Enabled && Expressions.Evaluate(element.EnabledIf, state) && parents.All(parent=>parent.Enabled && Expressions.Evaluate(parent.EnabledIf,state)); widget.Opacity = element.Opacity;
                     if (widget is Border frame && Equals(frame.Tag, "appearance")) { frame.Background = designer.FrameBrush(display); widget = (FrameworkElement)frame.Child; }
                     switch (widget)
                     {
                         case Button button: button.Content = designer.StyledText(display); button.Template = designer.SkinTemplate(display); break;
                         case TextBlock label: label.Text = element.Type == "item" ? "◆ " + display.Item.Split(':').Last() : display.Text; break;
-                        case ListBox list: if(!Equals(list.Tag,element.Value)) FillItemList(list,element.Value,element,name=>Enqueue(element.Id,name,element.Text)); break;
+                        case ListBox list: if(!Equals(list.Tag,ItemListStamp(element.Value,element,state))) designer.FillItemList(list,element.Value,element,name=>Enqueue(element.Id,name,element.Text),state); break;
                         case TextBox text: if (text.Text != element.Value) text.Text = element.Value; break;
                         case CheckBox check: check.Content = display.Text; check.IsChecked = element.Value == "true"; break;
                         case Slider slider: if (double.TryParse(element.Value, CultureInfo.InvariantCulture, out double value)) slider.Value = value; break;
@@ -279,3 +287,6 @@ public partial class MainWindow
         finally { await preview.CloseAsync(); }
     }
 }
+
+
+

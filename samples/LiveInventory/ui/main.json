@@ -1,0 +1,159 @@
+{
+  "events": {
+    "open": {
+      "server": {
+        "scriptEngine": "standard",
+        "script": "scripts/server/inventory.js",
+        "function": "refresh"
+      }
+    }
+  },
+  "elements": [
+    {
+      "background": "#101C23",
+      "fillEnabled": true,
+      "type": "panel",
+      "id": "backdrop",
+      "bounds": {
+        "width": 320,
+        "y": 0,
+        "x": 0,
+        "height": 240
+      },
+      "foreground": "#EAF0EC",
+      "cornerRadius": 6,
+      "fontScale": 0.8,
+      "text": ""
+    },
+    {
+      "fillEnabled": false,
+      "type": "label",
+      "id": "title",
+      "bounds": {
+        "width": 295,
+        "y": 9,
+        "x": 12,
+        "height": 20
+      },
+      "bold": true,
+      "foreground": "#EAF0EC",
+      "fontScale": 1.3,
+      "text": "YOUR INVENTORY"
+    },
+    {
+      "fillEnabled": false,
+      "type": "label",
+      "id": "subtitle",
+      "bounds": {
+        "width": 290,
+        "y": 33,
+        "x": 12,
+        "height": 14
+      },
+      "foreground": "#87B9AC",
+      "fontScale": 0.8,
+      "text": "Live server snapshot / read only"
+    },
+    {
+      "background": "#192B34",
+      "fillEnabled": true,
+      "events": {
+        "item_click": {
+          "server": {
+            "scriptEngine": "standard",
+            "script": "scripts/server/inventory.js",
+            "function": "selected"
+          }
+        }
+      },
+      "type": "item_list",
+      "id": "inventory",
+      "bounds": {
+        "width": 296,
+        "y": 54,
+        "x": 12,
+        "height": 138
+      },
+      "foreground": "#EAF0EC",
+      "value": "[]",
+      "fontScale": 0.8,
+      "text": ""
+    },
+    {
+      "fillEnabled": false,
+      "type": "label",
+      "id": "summary",
+      "bounds": {
+        "width": 296,
+        "y": 195,
+        "x": 12,
+        "height": 15
+      },
+      "foreground": "#EAF0EC",
+      "fontScale": 0.65,
+      "text": "Refresh in Minecraft to read your items."
+    },
+    {
+      "alignment": "center",
+      "fillEnabled": true,
+      "events": {
+        "click": {
+          "server": {
+            "scriptEngine": "standard",
+            "script": "scripts/server/inventory.js",
+            "function": "refresh"
+          }
+        }
+      },
+      "type": "button",
+      "id": "refresh",
+      "bounds": {
+        "width": 143,
+        "y": 216,
+        "x": 12,
+        "height": 18
+      },
+      "foreground": "#102D27",
+      "background": "#8AD7B7",
+      "fontScale": 0.8,
+      "text": "Refresh"
+    },
+    {
+      "alignment": "center",
+      "fillEnabled": true,
+      "events": {
+        "click": {
+          "client": {
+            "actions": [
+              {
+                "type": "close_ui",
+                "target": "",
+                "value": ""
+              }
+            ]
+          }
+        }
+      },
+      "type": "button",
+      "id": "close",
+      "bounds": {
+        "width": 145,
+        "y": 216,
+        "x": 163,
+        "height": 18
+      },
+      "foreground": "#EAF0EC",
+      "background": "#30434B",
+      "fontScale": 0.8,
+      "text": "Close"
+    }
+  ],
+  "title": "Live Inventory",
+  "size": {
+    "width": 320,
+    "height": 240
+  },
+  "fitToScreen": true,
+  "id": "main",
+  "showFrame": false
+}

@@ -15,7 +15,7 @@ public sealed class Manifest
     public string Name { get; set; } = "Untitled";
     public string Author { get; set; } = "";
     public string Version { get; set; } = "1.0.0";
-    public string RuntimeVersion { get; set; } = "1.3.0";
+    public string RuntimeVersion { get; set; } = "1.4.0";
     public string DefaultUi { get; set; } = "main";
     public List<string> Ui { get; set; } = ["main"];
     public List<string> Dependencies { get; set; } = [];
@@ -31,6 +31,7 @@ public sealed class Project
 }
 public sealed class UiDefinition
 {
+    public Dictionary<string,string> GroupParents { get; set; } = [];
     public bool ShowFrame { get; set; }
     public bool DimBackground { get; set; }
     public bool FitToScreen { get; set; } = true;
@@ -46,6 +47,9 @@ public sealed class Size { public int Width { get; set; } = 320; public int Heig
 public sealed class Bounds { public double X { get; set; } public double Y { get; set; } public double Width { get; set; } = 100; public double Height { get; set; } = 20; }
 public sealed class Element
 {
+    public string RowTemplate { get; set; } = "";
+    public string RowAction { get; set; } = "";
+    public List<Element> RowElements { get; set; } = [];
     public int RowHeight { get; set; } = 30;
     public string PrimaryLabel { get; set; } = "";
     public string SecondaryLabel { get; set; } = "";
@@ -109,3 +113,4 @@ public sealed class VisualAction
     public string Target { get; set; } = "";
     public string Value { get; set; } = "";
 }
+

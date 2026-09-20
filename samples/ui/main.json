@@ -1,0 +1,136 @@
+{
+  "schemaVersion": 1,
+  "id": "main",
+  "title": "New screen",
+  "size": {
+    "width": 320,
+    "height": 200
+  },
+  "variables": {},
+  "events": {},
+  "elements": [
+    {
+      "id": "open_button",
+      "name": "open_button",
+      "type": "button",
+      "bounds": {
+        "x": 96,
+        "y": 16,
+        "width": 48,
+        "height": 16
+      },
+      "visible": true,
+      "enabled": true,
+      "tooltip": "",
+      "text": ".open",
+      "foreground": "#ACFF76",
+      "background": "#304F21",
+      "fillEnabled": true,
+      "borderColor": "#258215",
+      "borderWidth": 2,
+      "opacity": 1,
+      "fontScale": 1,
+      "font": "minecraft:default",
+      "bold": true,
+      "italic": false,
+      "underline": false,
+      "textShadow": false,
+      "shadowColor": "#000000",
+      "shadowOpacity": 0.75,
+      "shadowOffsetX": 1,
+      "shadowOffsetY": 1,
+      "shadowBlur": 0,
+      "cornerRadius": 11,
+      "alignment": "center",
+      "texture": "",
+      "item": "minecraft:stone",
+      "value": "0",
+      "minimum": 0,
+      "maximum": 100,
+      "options": [
+        "Option 1",
+        "Option 2"
+      ],
+      "visibleIf": "",
+      "enabledIf": "",
+      "parent": "",
+      "textureX": 0,
+      "textureY": 0,
+      "textureWidth": 256,
+      "textureHeight": 256,
+      "events": {
+        "click": {
+          "client": {
+            "scriptEngine": "standard",
+            "actions": [
+              {
+                "type": "change_texture",
+                "target": "",
+                "value": ""
+              }
+            ],
+            "script": "",
+            "function": ""
+          },
+          "server": {
+            "scriptEngine": "standard",
+            "actions": [],
+            "script": "",
+            "function": ""
+          }
+        }
+      }
+    },
+    {
+      "id": "close_button",
+      "name": "close_button",
+      "type": "button",
+      "bounds": {
+        "x": 160,
+        "y": 16,
+        "width": 48,
+        "height": 16
+      },
+      "visible": true,
+      "enabled": true,
+      "tooltip": "",
+      "text": ".close",
+      "foreground": "#FF734D",
+      "background": "#4B4F31",
+      "fillEnabled": true,
+      "borderColor": "#82101B",
+      "borderWidth": 2,
+      "opacity": 1,
+      "fontScale": 1,
+      "font": "minecraft:default",
+      "bold": true,
+      "italic": false,
+      "underline": false,
+      "textShadow": false,
+      "shadowColor": "#000000",
+      "shadowOpacity": 0.75,
+      "shadowOffsetX": 1,
+      "shadowOffsetY": 1,
+      "shadowBlur": 0,
+      "cornerRadius": 11,
+      "alignment": "center",
+      "texture": "",
+      "item": "minecraft:stone",
+      "value": "0",
+      "minimum": 0,
+      "maximum": 100,
+      "options": [
+        "Option 1",
+        "Option 2"
+      ],
+      "visibleIf": "",
+      "enabledIf": "",
+      "parent": "",
+      "textureX": 0,
+      "textureY": 0,
+      "textureWidth": 256,
+      "textureHeight": 256,
+      "events": {}
+    }
+  ]
+}

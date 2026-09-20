@@ -100,10 +100,11 @@ public final class ServerRuntime {
         Ui ui = s.definition;
         Element element = ui.element(packet.element());
         if (element == null || !element.visible || !element.enabled || !Expressions.evaluate(element.visibleIf,s.state) || !Expressions.evaluate(element.enabledIf,s.state)) return;
-        Element parent = ui.element(element.parent);
+        for (Element parent : com.wysicraft.runtime.model.ContainerTree.ancestors(ui,element))
         if (parent != null && (!parent.visible || !parent.enabled || !Expressions.evaluate(parent.visibleIf,s.state) || !Expressions.evaluate(parent.enabledIf,s.state))) return;
         Event ev = element.events.get(packet.event()); if (ev == null || !PackRepository.events(element.type).contains(packet.event())) return;
         if (!validValue(element,packet.event(),packet.value())) return;
+        if(!element.rowElements.isEmpty() && Set.of("item_primary","item_secondary").contains(packet.event()) && !com.wysicraft.runtime.model.RowTemplates.hasAction(element,packet.event(),s.state))return;
         if (!player.hasPermissions(ev.server.permissionLevel)) return;
         if (ev.server.cooldownTicks > 0 && !Set.of("text_changed","value_changed").contains(packet.event())) {
             var limits=cooldowns.computeIfAbsent(player.getUUID(),key -> new HashMap<>());
@@ -136,7 +137,7 @@ public final class ServerRuntime {
         }
     }
     public static boolean validValue(Element e, String event, String value) {
-        if(event.equals("item_click") || event.equals("item_primary") || event.equals("item_secondary")) try { if(event.equals("item_primary") && e.primaryLabel.isEmpty() || event.equals("item_secondary") && e.secondaryLabel.isEmpty()) return false; int index=Integer.parseInt(value); return index>=0 && index<com.wysicraft.runtime.model.ItemRows.parse(e.value).size(); } catch(Exception ex) { return false; }
+        if(event.equals("item_click") || event.equals("item_primary") || event.equals("item_secondary")) return com.wysicraft.runtime.model.ItemRows.validEvent(e,event,value);
         if (event.equals("checked") || event.equals("unchecked")) return value.equals(event.equals("checked") ? "true" : "false");
         if (event.equals("text_changed") || event.equals("submit")) return value.length() <= 1024 && value.chars().noneMatch(c -> c == 0 || c == '\n' || c == '\r');
         if (event.equals("value_changed")) try { double v = Double.parseDouble(value); if (!Double.isFinite(v)) return false; return e.type.equals("dropdown") ? v == Math.rint(v) && v >= 0 && v < e.options.size() : v >= e.minimum && v <= e.maximum; } catch (NumberFormatException ex) { return false; }
@@ -191,3 +192,6 @@ public final class ServerRuntime {
         }, message -> Wysicraft.LOG.warn("Script: {} / {}: {}",session.ui,session.state.getOrDefault("event_location","screen event"),message));
     }
 }
+
+
+

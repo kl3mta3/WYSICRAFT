@@ -27,6 +27,12 @@ public static class ProjectEdits
             UiDefinition Screen() => project.Screens.SingleOrDefault(s => s.Id == edit.Screen) ?? throw new InvalidDataException("Screen not found: " + edit.Screen);
             switch (edit.Kind)
             {
+                case "arrange":
+                    var layout=Screen();
+                    var ids=edit.Data.GetProperty("ids").Deserialize<string[]>(Json.Options) ?? throw new InvalidDataException("Arrange requires selected element IDs");
+                    if(ids.Any(id=>!layout.Elements.Any(e=>e.Id==id)))throw new InvalidDataException("Arrange selection contains a missing element");
+                    if(!Enum.TryParse<ArrangeOperation>(edit.Data.GetProperty("operation").GetString(),true,out var operation) || !Enum.IsDefined(operation))throw new InvalidDataException("Unknown arrange operation");
+                    Arrangement.Apply(layout,Arrangement.Plan(layout,ids,operation,!edit.Data.TryGetProperty("keepGroups",out var keepGroups) || keepGroups.GetBoolean()));break;
                 case "set_project":
                     string oldId=project.Manifest.Id;
                     project.Manifest=Patch(project.Manifest,edit.Data);
@@ -94,3 +100,4 @@ public static class ProjectEdits
             else target[pair.Key] = pair.Value?.DeepClone();
     }
 }
+

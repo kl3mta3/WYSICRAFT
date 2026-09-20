@@ -49,7 +49,7 @@ public static class ProjectStore
         foreach (var original in p.Screens) {
             var ui = Json.Clone(original);
             if (!Validation.Id(ui.Id)) throw new InvalidDataException("Invalid UI ID");
-            foreach (var element in ui.Elements) element.Texture = CanonicalResource(element.Texture);
+            foreach (var element in ui.Elements) { element.Texture = CanonicalResource(element.Texture); if(pack && element.RowTemplate.Length>0) {element.RowElements=Json.Clone(RowTemplates.Resolve(p,element));foreach(var rowElement in element.RowElements)rowElement.Texture=CanonicalResource(rowElement.Texture);} }
             foreach (var ev in ui.Events.Values.Concat(ui.Elements.SelectMany(e => e.Events.Values)))
                 foreach (var action in ev.Client.Actions.Concat(ev.Server.Actions))
                     if (action.Type == "change_texture") action.Value = CanonicalResource(action.Value);
@@ -110,3 +110,4 @@ public static class ProjectStore
         return full;
     }
 }
+
