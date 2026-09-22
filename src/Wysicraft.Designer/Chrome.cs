@@ -76,7 +76,7 @@ public partial class MainWindow
     }
     void ShowAbout() {
         string version=typeof(MainWindow).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "";
-        MessageBox.Show(this,$"WYSICRAFT {version}\nVisual GUI designer for Minecraft 1.21.1 / NeoForge\nBundled Minecraft runtime {RuntimeInfo.Version}\nClient and server JavaScript use the bundled engine.","About WYSICRAFT");
+        MessageBox.Show(this,$"Wysicraft {version}\nVisual GUI designer for Minecraft 1.21.1 / NeoForge\nBundled Minecraft runtime {RuntimeInfo.Version}\nClient and server JavaScript use the bundled engine.","About Wysicraft");
     }
     void IsolateSelectedGroup() {
         var element=ui.Elements.FirstOrDefault(e=>selected.Contains(e.Id)) ?? throw new InvalidOperationException("Select something in a group first.");

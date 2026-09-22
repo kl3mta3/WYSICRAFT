@@ -11,7 +11,7 @@ public partial class App : Application
         EventManager.RegisterClassHandler(typeof(Window), FrameworkElement.LoadedEvent,
             new RoutedEventHandler((sender, _) => { if (sender is Window window && window.Icon == null) window.Icon = icon; }));
         var window = new MainWindow(); MainWindow = window;
-        DispatcherUnhandledException+=(_,args)=>{window.CaptureCrash(args.Exception);MessageBox.Show("WYSICRAFT encountered an unexpected error and will close. Any recovery draft is available from File → Recover unsaved project on the next launch.\n\n"+args.Exception.Message,"WYSICRAFT");args.Handled=true;Shutdown(1);};
+        DispatcherUnhandledException+=(_,args)=>{window.CaptureCrash(args.Exception);MessageBox.Show("Wysicraft encountered an unexpected error and will close. Any recovery draft is available from File → Recover unsaved project on the next launch.\n\n"+args.Exception.Message,"Wysicraft");args.Handled=true;Shutdown(1);};
         if (e.Args.Length == 3 && e.Args[0] is "--smoke-preview" or "--smoke-events" or "--smoke-mcp" or "--smoke-connection" or "--smoke-docking" or "--smoke-layers" or "--smoke-nesting" or "--smoke-recovery" or "--smoke-isolation" or "--smoke-componentselection" or "--smoke-components" or "--smoke-assets" or "--smoke-arrange" or "--smoke-anchors" or "--smoke-attach" or "--smoke-chrome")
         {
             window.LoadForSmoke(e.Args[1]); window.Show();

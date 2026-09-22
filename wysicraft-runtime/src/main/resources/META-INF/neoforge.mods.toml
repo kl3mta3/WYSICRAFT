@@ -4,7 +4,7 @@ license="MIT"
 [[mods]]
 modId="wysicraft"
 version="${version}"
-displayName="WYSICRAFT Runtime"
+displayName="Wysicraft Runtime"
 description='''Portable, visual Minecraft user interfaces with server-authoritative actions.'''
 [[dependencies.wysicraft]]
 modId="neoforge"

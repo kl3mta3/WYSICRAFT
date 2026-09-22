@@ -198,7 +198,7 @@ public partial class MainWindow : Window {
 						throw new Exception("Script already exists");
 					}
 					Change();
-					project.Scripts[text] = "function onClick(ctx) {\n  // Use only the approved WYSICRAFT API.\n}\n";
+					project.Scripts[text] = "function onClick(ctx) {\n  // Use only the approved Wysicraft API.\n}\n";
 					RefreshScripts(text);
 				}
 			});
@@ -267,7 +267,7 @@ public partial class MainWindow : Window {
 				SaveScriptText();
 				if (dirty)
 				{
-					MessageBoxResult num = MessageBox.Show(this, "Save changes before closing?", "WYSICRAFT", MessageBoxButton.YesNoCancel);
+					MessageBoxResult num = MessageBox.Show(this, "Save changes before closing?", "Wysicraft", MessageBoxButton.YesNoCancel);
 					if (num == MessageBoxResult.Cancel)
 					{
 						e.Cancel = true;
@@ -293,7 +293,7 @@ public partial class MainWindow : Window {
 		catch (Exception ex)
 		{
 			Log(ex.Message);
-			MessageBox.Show(this, ex.Message, "WYSICRAFT", MessageBoxButton.OK, MessageBoxImage.Hand);
+			MessageBox.Show(this, ex.Message, "Wysicraft", MessageBoxButton.OK, MessageBoxImage.Hand);
 		}
 	}
 
@@ -378,7 +378,7 @@ public partial class MainWindow : Window {
 		{
 			return true;
 		}
-		switch (MessageBox.Show(this, "Save current project first?", "WYSICRAFT", MessageBoxButton.YesNoCancel))
+		switch (MessageBox.Show(this, "Save current project first?", "Wysicraft", MessageBoxButton.YesNoCancel))
 		{
 		case MessageBoxResult.Cancel:
 			return false;
@@ -426,7 +426,7 @@ public partial class MainWindow : Window {
 		{
 			OpenFileDialog openFileDialog = new OpenFileDialog
 			{
-				Filter = "WYSICRAFT files|*.wysicraftproj;*.wysicraft;project.json|Editable project|*.wysicraftproj|Legacy project|project.json|Runtime pack|*.wysicraft"
+				Filter = "Wysicraft files|*.wysicraftproj;*.wysicraft;project.json|Editable project|*.wysicraftproj|Legacy project|project.json|Runtime pack|*.wysicraft"
 			};
 			if (openFileDialog.ShowDialog() == true)
 			{
@@ -447,8 +447,8 @@ public partial class MainWindow : Window {
 			{
 				SaveFileDialog saveFileDialog = new SaveFileDialog
 				{
-					Title = "Save WYSICRAFT project",
-					Filter = "WYSICRAFT Project|*.wysicraftproj",
+					Title = "Save Wysicraft project",
+					Filter = "Wysicraft Project|*.wysicraftproj",
 					DefaultExt = ".wysicraftproj",
 					AddExtension = true,
 					FileName = ((folder == null) ? (project.Manifest.Id + ".wysicraftproj") : Path.GetFileName(folder))
@@ -476,7 +476,7 @@ public partial class MainWindow : Window {
 		{
 			SaveFileDialog saveFileDialog = new SaveFileDialog
 			{
-				Filter = "WYSICRAFT Pack|*.wysicraft",
+				Filter = "Wysicraft Pack|*.wysicraft",
 				FileName = project.Manifest.Id + ".wysicraft"
 			};
 			if (saveFileDialog.ShowDialog() == true)
@@ -536,7 +536,7 @@ public partial class MainWindow : Window {
         RefreshAssetBrowser(); RefreshComponents();
 		Draw();
 		RefreshInspector();
-		base.Title = project.Manifest.Name + " — WYSICRAFT";
+		base.Title = project.Manifest.Name + " — Wysicraft";
 	}
 
 

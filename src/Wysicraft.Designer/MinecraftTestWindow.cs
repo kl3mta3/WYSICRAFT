@@ -43,7 +43,7 @@ internal sealed class MinecraftTestWindow : Window
     Process? process;
     string activeRoot = "", projectId = "", token = "", previousResult = "";
     bool busy, stopping, forcedStop;
-    static string SettingsFile => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"WYSICRAFT","minecraft-test.json");
+    static string SettingsFile => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"Wysicraft","minecraft-test.json");
     sealed class Settings { public string Instance { get; set; } = ""; public string JavaHome { get; set; } = ""; }
     Dictionary<string,string> usages = [];
     long logPosition;
@@ -58,13 +58,13 @@ internal sealed class MinecraftTestWindow : Window
     public MinecraftTestWindow(Window owner, Func<Project> capture, Func<string> runtimeJar)
     {
         Owner = owner; this.capture = capture; this.runtimeJar=runtimeJar; template = FindTemplate();
-        Title = "WYSICRAFT • Minecraft 1.21.1 / NeoForge test"; Width = 1050; Height = 650;
+        Title = "Wysicraft • Minecraft 1.21.1 / NeoForge test"; Width = 1050; Height = 650;
         Background = new SolidColorBrush(Color.FromRgb(29,32,37)); Foreground = Brushes.White;
         var layout = new DockPanel { Margin = new Thickness(10) }; Content = layout;
         var top = new StackPanel(); DockPanel.SetDock(top,Dock.Top); layout.Children.Add(top);
         var errors=new StackPanel(); DockPanel.SetDock(errors,Dock.Bottom); errors.Children.Add(new TextBlock {Text="SCRIPT / RUNTIME ERRORS",Foreground=Brushes.Salmon}); errors.Children.Add(diagnostics); layout.Children.Add(errors);
         top.Children.Add(new TextBlock { Text = "In Minecraft: F6 opens, F7 closes, F8 shows test controls / toggles the toolbar. Keys can be changed in Minecraft Controls.", Margin = new Thickness(4) });
-        instance.Text = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"WYSICRAFT","MinecraftTest","1.21.1");
+        instance.Text = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"Wysicraft","MinecraftTest","1.21.1");
         javaHome.Text = FindJava();
         try { if (File.Exists(SettingsFile)) { var settings = Json.Read<Settings>(File.ReadAllText(SettingsFile)); instance.Text = settings.Instance; if (IsJava21(settings.JavaHome)) javaHome.Text = settings.JavaHome; } } catch (Exception) { }
         AddFolder(top,"Test instance",instance); AddFolder(top,"Java 21 home",javaHome);
@@ -72,7 +72,7 @@ internal sealed class MinecraftTestWindow : Window
         Button Add(string title, System.Action action) { var button = new Button { Content = title }; button.Click += async (_, _) => { try { action(); } catch (Exception ex) { Print(ex.Message); await Task.CompletedTask; } }; controls.Children.Add(button); return button; }
         start = Add("Start editor test", async () => await Launch());
         testJar = Add("Test export…", async () => {
-            var dialog = new OpenFileDialog { Filter = "WYSICRAFT exports (*.zip;*.jar)|*.zip;*.jar|Installation ZIP (*.zip)|*.zip|Project JAR (*.jar)|*.jar", Title = "Select Installation ZIP or exported project JAR" };
+            var dialog = new OpenFileDialog { Filter = "Wysicraft exports (*.zip;*.jar)|*.zip;*.jar|Installation ZIP (*.zip)|*.zip|Project JAR (*.jar)|*.jar", Title = "Select Installation ZIP or exported project JAR" };
             if (dialog.ShowDialog(this) == true) await Launch(dialog.FileName);
         });
         apply = Add("Apply changes", () => { if (busy) return; ApplyEditor(); });
@@ -165,8 +165,8 @@ internal sealed class MinecraftTestWindow : Window
         activeRoot = Path.GetFullPath(instance.Text);
         if (activeRoot.StartsWith(Path.GetFullPath(template),StringComparison.OrdinalIgnoreCase)) throw new IOException("Choose a separate test instance folder.");
         string marker = Inside(activeRoot,"wysicraft-test-instance.txt");
-        if (Directory.Exists(activeRoot) && Directory.EnumerateFileSystemEntries(activeRoot).Any() && !File.Exists(marker)) throw new IOException("Choose an empty folder; this folder is not a WYSICRAFT-owned test instance.");
-        Directory.CreateDirectory(activeRoot); File.WriteAllText(marker,"WYSICRAFT Minecraft 1.21.1 test instance\n");
+        if (Directory.Exists(activeRoot) && Directory.EnumerateFileSystemEntries(activeRoot).Any() && !File.Exists(marker)) throw new IOException("Choose an empty folder; this folder is not a Wysicraft-owned test instance.");
+        Directory.CreateDirectory(activeRoot); File.WriteAllText(marker,"Wysicraft Minecraft 1.21.1 test instance\n");
         foreach (string file in new[] { "gradlew", "gradlew.bat", "build.gradle", "settings.gradle", "gradle.properties" })
             if (File.Exists(Path.Combine(template,file))) File.Copy(Path.Combine(template,file),Inside(activeRoot,file),true);
         CopyTree(Path.Combine(template,"gradle"),Inside(activeRoot,"gradle")); CopyTree(Path.Combine(template,"src","main"),Inside(activeRoot,"src/main"));
@@ -289,14 +289,14 @@ internal sealed class MinecraftTestWindow : Window
     }
     void SaveBaseline() {
         if (Running || forcedStop) return;
-        try { string world = Inside(activeRoot,"run/saves/WYSICRAFT Test"); string baseline = Inside(activeRoot,"baseline"); if (!stopping && File.Exists(Path.Combine(world,"level.dat")) && !Directory.Exists(baseline)) { CopyTree(world,baseline); Print("Saved the reusable test-world baseline."); } }
+        try { string world = Inside(activeRoot,"run/saves/Wysicraft Test"); string baseline = Inside(activeRoot,"baseline"); if (!stopping && File.Exists(Path.Combine(world,"level.dat")) && !Directory.Exists(baseline)) { CopyTree(world,baseline); Print("Saved the reusable test-world baseline."); } }
         catch (Exception ex) { Print("Baseline: "+ex.Message); }
     }
     void ResetWorld() {
         if (Running) return;
         activeRoot = Path.GetFullPath(instance.Text);
         if (!File.Exists(Inside(activeRoot,"wysicraft-test-instance.txt"))) throw new IOException("Set up this test instance first.");
-        string world = Inside(activeRoot,"run/saves/WYSICRAFT Test");
+        string world = Inside(activeRoot,"run/saves/Wysicraft Test");
         if (Directory.Exists(world)) Directory.Move(world,Inside(activeRoot,"world-backup-"+DateTime.UtcNow.ToString("yyyyMMdd-HHmmss-fff")));
         string baseline = Inside(activeRoot,"baseline"); if (Directory.Exists(baseline)) CopyTree(baseline,world);
         Print("Test world reset. Previous world retained as a backup; downloaded game files are reused.");

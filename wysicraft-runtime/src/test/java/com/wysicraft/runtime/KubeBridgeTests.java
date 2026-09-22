@@ -39,7 +39,7 @@ public class KubeBridgeTests {
         var player = new TestPlayer(); var context = new TestContext(player,player.state);
         TestApi.callback.accept(context,"");
         assertEquals("Server clicks: 1",TestApi.text);
-        assertEquals("me tested the WYSICRAFT bridge",TestApi.command);
+        assertEquals("me tested the Wysicraft bridge",TestApi.command);
         cx.evaluateString(scope,source,"reload",1,null);
         TestApi.callback.accept(context,"");
         assertEquals("Server clicks: 2",TestApi.text);

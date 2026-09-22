@@ -49,7 +49,7 @@ tasks.named('processResources') {
     // build.gradle's version is the single source: stamped into the mod metadata and read by PackRepository.
     inputs.property 'version', project.version
     filesMatching(['META-INF/neoforge.mods.toml', 'wysicraft-runtime.properties']) { expand(version: project.version) }
-    from('../LICENSE') { into 'META-INF/licenses'; rename { 'WYSICRAFT-LICENSE.txt' } }
+    from('../LICENSE') { into 'META-INF/licenses'; rename { 'Wysicraft-LICENSE.txt' } }
     from('../docs/third-party') {
         include 'Graal*', 'SDK-LICENSE.txt', 'sdk-LICENSE.txt', 'truffle-LICENSE.txt', 'regex-LICENSE.txt'
         into 'META-INF/licenses'

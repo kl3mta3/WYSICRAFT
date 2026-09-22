@@ -45,10 +45,10 @@ public partial class MainWindow
                 using var denied=await client.SendAsync(hostile);
                 if(denied.StatusCode!=HttpStatusCode.Forbidden) throw new Exception("Cross-origin access was not rejected.");
             }
-            await Rpc("initialize",new { protocolVersion="2025-11-25",capabilities=new {},clientInfo=new { name="WYSICRAFT smoke",version="1" } });
+            await Rpc("initialize",new { protocolVersion="2025-11-25",capabilities=new {},clientInfo=new { name="Wysicraft smoke",version="1" } });
             var listing=await Rpc("tools/list",new {});
             if(listing["tools"]!.AsArray().Count!=16) throw new Exception("Tools missing.");
-            if(connectionOnly) { if(!mcpClients.ContainsKey("WYSICRAFT smoke") || mcpRequests<2) throw new Exception("Client visibility missing"); File.WriteAllText(output,"PASS: authentication, origin checks, MCP discovery and client visibility."); return; }
+            if(connectionOnly) { if(!mcpClients.ContainsKey("Wysicraft smoke") || mcpRequests<2) throw new Exception("Client visibility missing"); File.WriteAllText(output,"PASS: authentication, origin checks, MCP discovery and client visibility."); return; }
             var before=await Call("get_project",new {});
             string revision=before["revision"]!.GetValue<string>();
             string screen=ui.Id;

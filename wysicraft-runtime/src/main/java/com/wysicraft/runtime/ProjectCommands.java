@@ -44,7 +44,7 @@ public final class ProjectCommands {
     }
     private static int execute(CommandSourceStack source, ServerPlayer player, String id, boolean opening) {
         PackRepository.Loaded pack = Wysicraft.SERVER.packs.all().values().stream().filter(p -> p.manifest().id.equals(id)).findFirst().orElse(null);
-        if (pack == null) { source.sendFailure(Component.literal("WYSICRAFT project is not loaded: " + id)); return 0; }
+        if (pack == null) { source.sendFailure(Component.literal("Wysicraft project is not loaded: " + id)); return 0; }
         if (opening) Wysicraft.SERVER.open(player,id+":"+pack.manifest().defaultUi);
         else Wysicraft.SERVER.closeProject(player,id);
         return 1;

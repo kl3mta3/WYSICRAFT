@@ -72,7 +72,7 @@ public final class MinecraftTestControls {
         else if(e.getMouseX()>=71 && e.getMouseX()<133) { e.setCanceled(true); command(false); }
     }
     static final class ControlScreen extends Screen {
-        ControlScreen() { super(Component.literal("WYSICRAFT test controls")); }
+        ControlScreen() { super(Component.literal("Wysicraft test controls")); }
         @Override public boolean isPauseScreen() { return false; }
         @Override protected void init() {
             addRenderableWidget(Button.builder(Component.literal(".open"),b->command(true)).bounds(width/2-105,height/2-10,100,20).build());

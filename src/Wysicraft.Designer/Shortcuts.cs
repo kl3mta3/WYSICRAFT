@@ -13,7 +13,7 @@ public partial class MainWindow
     readonly List<Command> commands=new();
     Dictionary<string,string> shortcutOverrides=new();
     readonly Dictionary<string,List<MenuItem>> commandMenuItems=new();
-    static string ShortcutsPath => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"WYSICRAFT","keybindings.json");
+    static string ShortcutsPath => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"Wysicraft","keybindings.json");
 
     void RegisterCommands() {
         void Add(string id,string category,string name,string gesture,Action run,bool typing=false,Func<bool>? isChecked=null)=>commands.Add(new(id,category,name,gesture,run,typing,isChecked));
@@ -57,7 +57,7 @@ public partial class MainWindow
         Add("project.importTexture","Project","Import texture…","",ImportTexture);
         Add("project.mcp","Project","MCP server (AI assistants)…","",ShowMcpPanel);
         Add("help.scriptApi","Help","Script API and snippets","",ShowScriptApi);
-        Add("help.about","Help","About WYSICRAFT","",ShowAbout);
+        Add("help.about","Help","About Wysicraft","",ShowAbout);
         LoadShortcuts();
     }
     Command Cmd(string id)=>commands.First(c=>c.Id==id);

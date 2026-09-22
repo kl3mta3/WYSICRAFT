@@ -8,12 +8,12 @@
   #define NumericVersion "1.0.0.0"
 #endif
 #ifdef TestInstall
-  #define ProductName "WYSICRAFT Installer Test"
+  #define ProductName "Wysicraft Installer Test"
   #define ProductId "WYSICRAFT-Installer-Test"
   #define ProjectExtension ".wysicraft-release-test"
   #define ProjectType "Wysicraft.ReleaseTest"
 #else
-  #define ProductName "WYSICRAFT"
+  #define ProductName "Wysicraft"
   #define ProductId "{{1A57F799-B36A-45E5-941D-B56350D754B8}"
   #define ProjectExtension ".wysicraftproj"
   #define ProjectType "Wysicraft.Project"
@@ -44,7 +44,7 @@ DisableProgramGroupPage=yes
 
 [Tasks]
 Name: "desktopicon"; Description: "Create a desktop shortcut"; Flags: unchecked
-Name: "associate"; Description: "Register WYSICRAFT project files with this app"
+Name: "associate"; Description: "Register Wysicraft project files with this app"
 
 [Files]
 Source: "{#ReleaseDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
@@ -56,12 +56,12 @@ Name: "{autodesktop}\{#ProductName}"; Filename: "{app}\Designer\Wysicraft.Design
 [Registry]
 Root: HKCU; Subkey: "Software\Classes\{#ProjectExtension}"; ValueType: string; ValueName: ""; ValueData: "{#ProjectType}"; Flags: createvalueifdoesntexist; Tasks: associate
 Root: HKCU; Subkey: "Software\Classes\{#ProjectExtension}\OpenWithProgids"; ValueType: string; ValueName: "{#ProjectType}"; ValueData: ""; Flags: uninsdeletevalue uninsdeletekeyifempty; Tasks: associate
-Root: HKCU; Subkey: "Software\Classes\{#ProjectType}"; ValueType: string; ValueName: ""; ValueData: "WYSICRAFT Project"; Flags: uninsdeletekey; Tasks: associate
+Root: HKCU; Subkey: "Software\Classes\{#ProjectType}"; ValueType: string; ValueName: ""; ValueData: "Wysicraft Project"; Flags: uninsdeletekey; Tasks: associate
 Root: HKCU; Subkey: "Software\Classes\{#ProjectType}\DefaultIcon"; ValueType: string; ValueData: "{app}\Designer\Wysicraft.Designer.exe,0"; Tasks: associate
 Root: HKCU; Subkey: "Software\Classes\{#ProjectType}\shell\open\command"; ValueType: string; ValueData: """{app}\Designer\Wysicraft.Designer.exe"" ""%1"""; Tasks: associate
 
 [Run]
-Filename: "{app}\Designer\Wysicraft.Designer.exe"; Description: "Open WYSICRAFT"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\Designer\Wysicraft.Designer.exe"; Description: "Open Wysicraft"; Flags: nowait postinstall skipifsilent
 
 [Code]
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);

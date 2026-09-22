@@ -44,7 +44,7 @@ public partial class MainWindow
                     if(previewRevision!=Revision())throw new InvalidOperationException("Project changed. Reopen Preview to use the latest project.");
                     if(operation=="preview_event") { await activePreview.RunMcpEvent(element,eventName,value);return activePreview.Snapshot(); }
                     await activePreview.WaitReady();
-                    string root=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"WYSICRAFT","McpCaptures");Directory.CreateDirectory(root);
+                    string root=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"Wysicraft","McpCaptures");Directory.CreateDirectory(root);
                     string capture=Path.Combine(root,Guid.NewGuid().ToString("N")+".png");activePreview.CaptureCanvas(capture);return Json.Write(new{path=capture});
                 case "templates":
                     return Json.Write(new { templates=ScriptTemplate.All.Select(t=>new{ id=t.Title,title=t.Title,server=t.Server,engine=t.Engine,global=t.Global,source=t.Source("on_event",project.Manifest.Id).Replace("__PROJECT__",project.Manifest.Id) }),instructions="Use apply_template with an id, screen, eventName, and optional element. Constants in source are editable placeholders. Global registration uses KubeJS and exports because its script is assigned to an event." });

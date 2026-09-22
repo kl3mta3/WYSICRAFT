@@ -109,7 +109,7 @@ public partial class MainWindow
     void DeleteBrowserAsset(){var entry=ChosenAsset();var uses=AssetUses(entry.Id);if(uses.Count>0)throw new InvalidOperationException("Image is still used by:\n"+string.Join("\n",uses));Change();project.Assets.Remove(entry.Id);RefreshAssetBrowser();Draw();}
     void LoadItemJar(){var dialog=new OpenFileDialog{Filter="Minecraft client or mod JAR|*.jar",Multiselect=true};if(dialog.ShowDialog()!=true)return;foreach(var path in dialog.FileNames)minecraftAssets.LoadJar(path);itemImages.Clear();RefreshItemBrowser();Draw();}
     void LoadTestItems(){
-        string root=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"WYSICRAFT","MinecraftTest","1.21.1");var settings=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"WYSICRAFT","minecraft-test.json");
+        string root=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"Wysicraft","MinecraftTest","1.21.1");var settings=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"Wysicraft","minecraft-test.json");
         if(File.Exists(settings)){using var doc=System.Text.Json.JsonDocument.Parse(File.ReadAllText(settings));if(doc.RootElement.TryGetProperty("instance",out var path))root=path.GetString()??root;}
         string catalog=Path.Combine(root,".wysicraft-test","items.json");if(!File.Exists(catalog))throw new InvalidOperationException("Start an editor Minecraft test with this version first, then choose Read test items.");
         if(new FileInfo(catalog).Length>16*1024*1024)throw new InvalidDataException("Item catalog exceeds 16 MB.");

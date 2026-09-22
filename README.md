@@ -1,12 +1,12 @@
-# WYSICRAFT
+# Wysicraft
 
-**1.2:** Project JARs now bundle the runtime and assigned Standard/KubeJS scripts. No separate WYSICRAFT installation is needed in-game; KubeJS projects still require KubeJS/Rhino. Script dropdowns include editable `[Template]` entries and global command examples. See [1.2 release notes](docs/RELEASE-1.2.md).
+**1.2:** Project JARs now bundle the runtime and assigned Standard/KubeJS scripts. No separate Wysicraft installation is needed in-game; KubeJS projects still require KubeJS/Rhino. Script dropdowns include editable `[Template]` entries and global command examples. See [1.2 release notes](docs/RELEASE-1.2.md).
 
 **Version 1.1:** single-file .wysicraftproj saving, project-scoped screens, Standard Server scripts, Item Lists, installation ZIP/JAR exports and expanded MCP tools. See [1.1 workflow notes](docs/RELEASE-1.1.md).
 
 A Windows visual GUI designer and portable NeoForge runtime for Minecraft Java Edition **1.21.1**. Create screens, connect client and server actions, export a `.wysicraft` ZIP, and load it without generating Java screen classes or restarting Minecraft.
 
-WYSICRAFT is intended for modpack authors and addon developers building menus, dashboards and control panels. Create and Create Aeronautics can be integrated through their documented commands or addon actions; neither mod is required.
+Wysicraft is intended for modpack authors and addon developers building menus, dashboards and control panels. Create and Create Aeronautics can be integrated through their documented commands or addon actions; neither mod is required.
 
 
 ## Build and launch
@@ -99,7 +99,7 @@ The preview runs actual JavaScript using Jint in a separate constrained process.
 /wysicraft open cockpit
 ```
 
-Reload requires permission level 2. The sample `say` commands also require the player's normal command permissions: use a cheats-enabled single-player world or an authorized operator to verify them. **WYSICRAFT does not elevate the player.**
+Reload requires permission level 2. The sample `say` commands also require the player's normal command permissions: use a cheats-enabled single-player world or an authorized operator to verify them. **Wysicraft does not elevate the player.**
 
 For command blocks or operators: `/wysicraft open cockpit <player>`. `/wui` is an alias. Unpacked development projects can be placed in `wysicraft/dev/<project>/`. Reload closes active screens and rescans packs.
 

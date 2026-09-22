@@ -47,7 +47,7 @@ public final class WysicraftApi {
     public static void setVisible(ServerPlayer player, String id, boolean visible) { Wysicraft.SERVER.update(player,"set_visible",id,Boolean.toString(visible)); }
     public static void setEnabled(ServerPlayer player, String id, boolean enabled) { Wysicraft.SERVER.update(player,"set_enabled",id,Boolean.toString(enabled)); }
     public static void setVariable(ServerPlayer player, String name, String value) { Wysicraft.SERVER.update(player,"set_variable",name,value); }
-    public static void requireServerThread(ServerPlayer player) { if (player.getServer() == null || !player.getServer().isSameThread()) throw new IllegalStateException("Call WYSICRAFT from a server event/thread"); }
+    public static void requireServerThread(ServerPlayer player) { if (player.getServer() == null || !player.getServer().isSameThread()) throw new IllegalStateException("Call Wysicraft from a server event/thread"); }
     public static void registerKubeHandler(String projectId, String key, BiConsumer<ServerContext,String> handler) {
         if (!PackRepository.id(projectId) || !key.matches("[a-f0-9]{64}")) throw new IllegalArgumentException("Invalid KubeJS handler ID");
         SERVER_FUNCTIONS.put(projectId + ":kube:" + key, Objects.requireNonNull(handler));

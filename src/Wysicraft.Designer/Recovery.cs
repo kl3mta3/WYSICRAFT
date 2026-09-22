@@ -8,7 +8,7 @@ using Wysicraft.Packaging;
 namespace Wysicraft.Designer;
 public partial class MainWindow
 {
-    static string RecoveryRoot => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"WYSICRAFT","Recovery");
+    static string RecoveryRoot => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"Wysicraft","Recovery");
     RecoveryStore? recovery;
     string? recoveredFrom;
     bool crashRecovery, recoveryErrorReported;

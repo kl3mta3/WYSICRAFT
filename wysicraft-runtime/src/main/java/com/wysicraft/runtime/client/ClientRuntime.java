@@ -25,7 +25,7 @@ public final class ClientRuntime {
             if (ui == null || !PackRepository.screenId(ui.id) || ui.elements.size() > 512 || ui.schemaVersion != 1) throw new IllegalArgumentException("Invalid UI payload");
             if (mc.screen instanceof DynamicScreen old) old.remoteClosing = true;
             mc.setScreen(new DynamicScreen(ui,packet.session()));
-        } catch (Exception ex) { Wysicraft.LOG.warn("Unable to open UI: {}",ex.toString()); if (Minecraft.getInstance().player != null) Minecraft.getInstance().player.sendSystemMessage(Component.literal("WYSICRAFT: " + ex.getMessage())); }
+        } catch (Exception ex) { Wysicraft.LOG.warn("Unable to open UI: {}",ex.toString()); if (Minecraft.getInstance().player != null) Minecraft.getInstance().player.sendSystemMessage(Component.literal("Wysicraft: " + ex.getMessage())); }
     }
     public static void close(Payloads.CloseUi packet) { var mc = Minecraft.getInstance(); if (mc.screen instanceof DynamicScreen screen && screen.session.equals(packet.session())) { screen.remoteClosing = true; mc.setScreen(null); } }
     public static void update(Payloads.UpdateUi packet) {

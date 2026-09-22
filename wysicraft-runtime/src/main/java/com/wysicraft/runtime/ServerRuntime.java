@@ -30,7 +30,7 @@ public final class ServerRuntime {
     public void update(ServerPlayer player, String type, String target, String value) {
         WysicraftApi.requireServerThread(player);
         Session session = sessions.get(player.getUUID());
-        if (session == null) throw new IllegalStateException("Player has no open WYSICRAFT screen");
+        if (session == null) throw new IllegalStateException("Player has no open Wysicraft screen");
         if (value.length() > 4096 || target.length() > 64) throw new IllegalArgumentException("UI update exceeds limits");
         if (type.equals("set_variable")) {
             if (!PackRepository.variable(target)) throw new IllegalArgumentException("Invalid variable");
@@ -54,7 +54,7 @@ public final class ServerRuntime {
         PacketDistributor.sendToPlayer(player,new Payloads.UpdateUi(session.token,type,target,value));
     }
     public void reload(net.minecraft.server.MinecraftServer server) {
-        for (ServerPlayer player : server.getPlayerList().getPlayers()) { close(player); player.sendSystemMessage(Component.literal("WYSICRAFT packs reloaded; open interfaces were closed.")); }
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) { close(player); player.sendSystemMessage(Component.literal("Wysicraft packs reloaded; open interfaces were closed.")); }
         loadPacks();
         ProjectCommands.register(server.getCommands().getDispatcher());
         for (ServerPlayer player : server.getPlayerList().getPlayers()) server.getCommands().sendCommands(player);
@@ -70,7 +70,7 @@ public final class ServerRuntime {
     }
     public void open(ServerPlayer player, String id) {
         if (depth >= 16) { Wysicraft.LOG.warn("UI action recursion limit"); return; }
-        Ui ui = packs.get(id); if (ui == null) { player.sendSystemMessage(Component.literal("Unknown WYSICRAFT UI: " + id)); return; }
+        Ui ui = packs.get(id); if (ui == null) { player.sendSystemMessage(Component.literal("Unknown Wysicraft UI: " + id)); return; }
         depth++;
         try {
             // Replace the client screen directly: a CloseUi here briefly grabs and

@@ -48,7 +48,7 @@ public final class Wysicraft {
     }
     private void commands(RegisterCommandsEvent event) {
         var root = Commands.literal("wysicraft")
-            .then(Commands.literal("list").executes(ctx -> { ctx.getSource().sendSuccess(() -> Component.literal("WYSICRAFT UIs: " + String.join(", ",SERVER.packs.all().keySet())),false); return SERVER.packs.all().size(); }))
+            .then(Commands.literal("list").executes(ctx -> { ctx.getSource().sendSuccess(() -> Component.literal("Wysicraft UIs: " + String.join(", ",SERVER.packs.all().keySet())),false); return SERVER.packs.all().size(); }))
             .then(Commands.literal("reload").requires(source -> source.hasPermission(2)).executes(ctx -> { SERVER.reload(ctx.getSource().getServer()); return 1; }))
             .then(Commands.literal("open").then(Commands.argument("ui",StringArgumentType.word()).suggests((ctx,builder) -> SharedSuggestionProvider.suggest(SERVER.packs.all().keySet(),builder))
                 .executes(ctx -> { SERVER.open(ctx.getSource().getPlayerOrException(),StringArgumentType.getString(ctx,"ui")); return 1; })

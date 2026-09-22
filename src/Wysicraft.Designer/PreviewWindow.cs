@@ -60,7 +60,7 @@ public partial class MainWindow
         public PreviewSession(MainWindow designer, Project project, string id)
         {
             this.designer = designer; this.project = project; initialUi = id; screen = Json.Clone(project.Screens.First(s => s.Id == id)); state = new(screen.Variables);
-            Window = new Window { Title = "WYSICRAFT • Interactive Preview", Owner = designer, Width = Math.Max(760, screen.Size.Width * Zoom + 40), Height = Math.Max(650, screen.Size.Height * Zoom + 320), Background = new SolidColorBrush(Color.FromRgb(29, 32, 37)), Foreground = Brushes.White, WindowStartupLocation = WindowStartupLocation.CenterOwner };
+            Window = new Window { Title = "Wysicraft • Interactive Preview", Owner = designer, Width = Math.Max(760, screen.Size.Width * Zoom + 40), Height = Math.Max(650, screen.Size.Height * Zoom + 320), Background = new SolidColorBrush(Color.FromRgb(29, 32, 37)), Foreground = Brushes.White, WindowStartupLocation = WindowStartupLocation.CenterOwner };
             var layout = new DockPanel(); Window.Content = layout;
             var tools = new StackPanel { Orientation = Orientation.Horizontal }; DockPanel.SetDock(tools, Dock.Top); layout.Children.Add(tools);
             var reset = new Button { Content = "Reset preview" }; reset.Click += (_, _) => { if (busy) return; Open(initialUi); }; tools.Children.Add(reset);

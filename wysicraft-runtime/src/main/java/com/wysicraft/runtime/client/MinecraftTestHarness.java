@@ -18,7 +18,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 /** Local file control channel, opt-in development client only. Never used on multiplayer servers. */
 public final class MinecraftTestHarness {
-    private static final String WORLD = "WYSICRAFT Test";
+    private static final String WORLD = "Wysicraft Test";
     private static final boolean LOCAL_SERVER = "127.0.0.1:25579".equals(System.getProperty("wysicraft.localTestServer"));
     private static boolean started, catalogWritten;
     private static long nextPoll;
@@ -75,7 +75,7 @@ public final class MinecraftTestHarness {
             try {
                 if (LOCAL_SERVER) {
                     var address=net.minecraft.client.multiplayer.resolver.ServerAddress.parseString("127.0.0.1:25579");
-                    var data=new net.minecraft.client.multiplayer.ServerData("WYSICRAFT local release check","127.0.0.1:25579",net.minecraft.client.multiplayer.ServerData.Type.OTHER);
+                    var data=new net.minecraft.client.multiplayer.ServerData("Wysicraft local release check","127.0.0.1:25579",net.minecraft.client.multiplayer.ServerData.Type.OTHER);
                     net.minecraft.client.gui.screens.ConnectScreen.startConnecting(new TitleScreen(),mc,address,data,false,null);
                 } else if (Files.isRegularFile(mc.gameDirectory.toPath().resolve("saves").resolve(WORLD).resolve("level.dat"))) {
                     mc.createWorldOpenFlows().openWorld(WORLD,() -> mc.setScreen(new TitleScreen()));
@@ -167,7 +167,7 @@ public final class MinecraftTestHarness {
                     if ("reload".equals(input.kind)) {
                         server.reloadResources(server.getPackRepository().getSelectedIds()).whenComplete((unused,error) -> server.execute(() -> {
                             if (error != null) lastError = error.toString();
-                            else { Wysicraft.SERVER.reload(server); lastResult = "KubeJS and WYSICRAFT reloaded. Use .open to test."; }
+                            else { Wysicraft.SERVER.reload(server); lastResult = "KubeJS and Wysicraft reloaded. Use .open to test."; }
                         }));
                         lastResult = "Reload requested";
                     } else if ("command".equals(input.kind)) {
@@ -175,7 +175,7 @@ public final class MinecraftTestHarness {
                         if (command.length() > 2048 || command.contains("\n") || command.contains("\r") || !commands.contains(command.split("\\s+",2)[0])) throw new IllegalArgumentException("Choose a registered command belonging to this project");
                         int result = dispatcher.execute(command,source);
                         lastResult = "/" + command + " completed (result " + result + ")";
-                        Wysicraft.LOG.info("WYSICRAFT TEST: {}",lastResult);
+                        Wysicraft.LOG.info("Wysicraft TEST: {}",lastResult);
                     }
                 }
                 var usage = new LinkedHashMap<String,String>();
@@ -184,7 +184,7 @@ public final class MinecraftTestHarness {
                     usage.put(command,String.join(" | ",dispatcher.getSmartUsage(node,source).values()));
                 }
                 state(session,true,commands,usage);
-            } catch (Exception ex) { lastError = ex.getMessage(); state(session,true,List.of(),Map.of()); Wysicraft.LOG.warn("WYSICRAFT TEST: {}",ex.toString()); }
+            } catch (Exception ex) { lastError = ex.getMessage(); state(session,true,List.of(),Map.of()); Wysicraft.LOG.warn("Wysicraft TEST: {}",ex.toString()); }
             finally { pending.set(false); }
         });
     }
