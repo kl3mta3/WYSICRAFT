@@ -1337,7 +1337,9 @@ public partial class MainWindow : Window {
 			else
 			{
 				Change();
+				string oldId = project.Manifest.Id;
 				project.Manifest = clone;
+				ProjectEdits.MoveAssetNamespace(project, oldId); // keep images working when the Id changes
 				window.Close();
 				RefreshAll();
 			}

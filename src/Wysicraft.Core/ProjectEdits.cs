@@ -18,6 +18,17 @@ public sealed class ProjectEdit
 public static class ProjectEdits
 {
     static readonly JsonSerializerOptions Strict = new(Json.Options) { UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow };
+    // After the project ID changes, moves images from assets/<old>/ to assets/<new>/ and updates every
+    // <old>:... texture, font and change_texture reference so controls keep their images.
+    public static void MoveAssetNamespace(Project project,string oldId) {
+        string newId=project.Manifest.Id;if(oldId==newId)return;
+        string Rename(string value)=>value.StartsWith(oldId+":")?newId+value[oldId.Length..]:value;
+        project.Assets=project.Assets.ToDictionary(p=>p.Key.StartsWith("assets/"+oldId+"/")?"assets/"+newId+"/"+p.Key[(8+oldId.Length)..]:p.Key,p=>p.Value);
+        foreach(var s in project.Screens) {
+            foreach(var e in s.Elements) { e.Texture=Rename(e.Texture); e.Font=Rename(e.Font); }
+            foreach(var ev in s.Events.Values.Concat(s.Elements.SelectMany(e=>e.Events.Values))) foreach(var h in new[]{ev.Client,ev.Server}) foreach(var a in h.Actions) if(a.Type=="change_texture") a.Value=Rename(a.Value);
+        }
+    }
     public static Project Apply(Project original, IReadOnlyList<ProjectEdit> edits)
     {
         if (edits.Count is < 1 or > 128) throw new InvalidDataException("Use 1–128 edits per batch.");
@@ -42,14 +53,7 @@ public static class ProjectEdits
                 case "set_project":
                     string oldId=project.Manifest.Id;
                     project.Manifest=Patch(project.Manifest,edit.Data);
-                    if(oldId!=project.Manifest.Id) {
-                        string Rename(string value)=>value.StartsWith(oldId+":")?project.Manifest.Id+value[oldId.Length..]:value;
-                        project.Assets=project.Assets.ToDictionary(p=>p.Key.StartsWith("assets/"+oldId+"/")?"assets/"+project.Manifest.Id+"/"+p.Key[(8+oldId.Length)..]:p.Key,p=>p.Value);
-                        foreach(var s in project.Screens) {
-                            foreach(var e in s.Elements) { e.Texture=Rename(e.Texture); e.Font=Rename(e.Font); }
-                            foreach(var ev in s.Events.Values.Concat(s.Elements.SelectMany(e=>e.Events.Values))) foreach(var h in new[]{ev.Client,ev.Server}) foreach(var a in h.Actions) if(a.Type=="change_texture") a.Value=Rename(a.Value);
-                        }
-                    }
+                    if(oldId!=project.Manifest.Id)MoveAssetNamespace(project,oldId);
                     break;
                 case "upsert_screen":
                     var old = project.Screens.SingleOrDefault(s => s.Id == edit.Screen);
