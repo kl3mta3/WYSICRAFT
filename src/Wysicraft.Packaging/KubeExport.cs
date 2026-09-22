@@ -15,7 +15,7 @@ public static class KubeExport
         var project = Json.Clone(source);
         var registrations = new StringBuilder();
         var handlers = new Dictionary<string, string>(StringComparer.Ordinal);
-        foreach (var screen in project.Screens)
+        foreach (var screen in project.Screens.Where(s=>!s.IsComponent))
         foreach (var ev in screen.Events.Values.Concat(screen.Elements.SelectMany(e => e.Events.Values)))
         {
             if (ev.Client.Script.Length > 0 && ev.Client.ScriptEngine != "standard") throw new InvalidDataException("Client scripts must use the Standard engine: " + ev.Client.Script);
@@ -59,9 +59,12 @@ public static class KubeExport
     public static void Export(Project project, string destination)
     {
         var files = Files(project);
-        using (var output = File.Create(destination + ".tmp"))
-        using (var zip = new ZipArchive(output, ZipArchiveMode.Create))
-            foreach (var file in files) { using var stream = zip.CreateEntry(file.Key, CompressionLevel.Optimal).Open(); stream.Write(file.Value); }
-        File.Move(destination + ".tmp", destination, true);
+        string temporary = destination + ".tmp";
+        try {
+            using (var output = File.Create(temporary))
+            using (var zip = new ZipArchive(output, ZipArchiveMode.Create))
+                foreach (var file in files) { using var stream = zip.CreateEntry(file.Key, CompressionLevel.Optimal).Open(); stream.Write(file.Value); }
+            File.Move(temporary, destination, true);
+        } finally { if (File.Exists(temporary)) File.Delete(temporary); }
     }
 }

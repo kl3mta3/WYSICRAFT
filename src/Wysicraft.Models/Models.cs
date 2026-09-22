@@ -7,6 +7,15 @@ public static class Json
     public static string Write<T>(T value) => JsonSerializer.Serialize(value, Options);
     public static T Read<T>(string value) => JsonSerializer.Deserialize<T>(value, Options) ?? throw new InvalidDataException("Empty JSON");
     public static T Clone<T>(T value) => Read<T>(Write(value));
+    // Deep copy of everything except asset bytes, which are never modified in place and so can be shared.
+    // Avoids base64-encoding every texture on each undo checkpoint, autosave and staging copy.
+    public static Project CloneProject(Project project) {
+        var assets = project.Assets; project.Assets = [];
+        Project copy;
+        try { copy = Clone(project); } finally { project.Assets = assets; }
+        copy.Assets = new Dictionary<string, byte[]>(assets);
+        return copy;
+    }
 }
 public sealed class Manifest
 {
@@ -15,7 +24,7 @@ public sealed class Manifest
     public string Name { get; set; } = "Untitled";
     public string Author { get; set; } = "";
     public string Version { get; set; } = "1.0.0";
-    public string RuntimeVersion { get; set; } = "1.4.0";
+    public string RuntimeVersion { get; set; } = RuntimeInfo.Version;
     public string DefaultUi { get; set; } = "main";
     public List<string> Ui { get; set; } = ["main"];
     public List<string> Dependencies { get; set; } = [];
@@ -31,6 +40,9 @@ public sealed class Project
 }
 public sealed class UiDefinition
 {
+    public bool IsComponent { get; set; }
+    public List<ComponentInstance> ComponentInstances { get; set; } = [];
+    public bool Responsive { get; set; }
     public Dictionary<string,string> GroupParents { get; set; } = [];
     public bool ShowFrame { get; set; }
     public bool DimBackground { get; set; }
@@ -43,10 +55,23 @@ public sealed class UiDefinition
     public Dictionary<string, UiEvent> Events { get; set; } = [];
     public List<Element> Elements { get; set; } = [];
 }
+public sealed class ComponentInstance
+{
+    public string Root { get; set; } = "";
+    public string Source { get; set; } = "";
+    public Size SourceSize { get; set; } = new();
+    public Dictionary<string,string> Ids { get; set; } = [];
+    public Dictionary<string,Element> Baseline { get; set; } = [];
+}
 public sealed class Size { public int Width { get; set; } = 320; public int Height { get; set; } = 200; }
 public sealed class Bounds { public double X { get; set; } public double Y { get; set; } public double Width { get; set; } = 100; public double Height { get; set; } = 20; }
 public sealed class Element
 {
+    public string HorizontalAnchor { get; set; } = "left";
+    public string VerticalAnchor { get; set; } = "top";
+    public double MinWidth { get; set; } = 1;
+    public double MinHeight { get; set; } = 1;
+    public double RowTemplateWidth { get; set; }
     public string RowTemplate { get; set; } = "";
     public string RowAction { get; set; } = "";
     public List<Element> RowElements { get; set; } = [];
@@ -59,6 +84,8 @@ public sealed class Element
     public string LayerGroup { get; set; } = "";
     public string Type { get; set; } = "button";
     public Bounds Bounds { get; set; } = new();
+    // Editor-only: a locked control can't be clicked, dragged or nudged on the canvas. Minecraft ignores it.
+    public bool Locked { get; set; }
     public bool Visible { get; set; } = true;
     public bool Enabled { get; set; } = true;
     public string Tooltip { get; set; } = "";

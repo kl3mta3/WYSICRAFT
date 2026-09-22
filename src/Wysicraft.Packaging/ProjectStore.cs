@@ -10,15 +10,17 @@ public static class ProjectStore
     {
         if (!path.EndsWith(".wysicraftproj", StringComparison.OrdinalIgnoreCase)) throw new InvalidDataException("Use a .wysicraftproj project file.");
         // Saving preserves unassigned scripts and unfinished work; export validates separately.
-        var files = Files(Json.Clone(project), false);
+        var files = Files(Json.CloneProject(project), false);
         string temporary = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
         try {
             using (var output = File.Create(temporary))
             using (var archive = new ZipArchive(output, ZipArchiveMode.Create))
-                foreach (var file in files) { using var stream = archive.CreateEntry(file.Key, CompressionLevel.Optimal).Open(); stream.Write(file.Value); }
+                foreach (var file in files) { using var stream = archive.CreateEntry(file.Key, Level(file.Key)).Open(); stream.Write(file.Value); }
             File.Move(temporary, path, true);
         } finally { if (File.Exists(temporary)) File.Delete(temporary); }
     }
+    // PNGs are already compressed; recompressing them only costs time.
+    static CompressionLevel Level(string name) => name.EndsWith(".png", StringComparison.OrdinalIgnoreCase) ? CompressionLevel.NoCompression : CompressionLevel.Optimal;
     public const int MaxEntry = 32 * 1024 * 1024, MaxPack = 256 * 1024 * 1024, MaxTextureDimension = 8192;
     public static (int Width, int Height) TextureSize(byte[] bytes)
     {
@@ -37,7 +39,7 @@ public static class ProjectStore
     public static Dictionary<string, byte[]> Files(Project p, bool pack)
     {
         if(pack) { p=Json.Clone(p); p.Manifest.RuntimeVersion=Distribution.RuntimeVersion; }
-        p.Manifest.Ui = p.Screens.Select(s => s.Id).ToList();
+        p.Manifest.Ui = p.Screens.Where(s=>!pack || !s.IsComponent).Select(s => s.Id).ToList();
         Dictionary<string, byte[]> files = new() { [pack ? "manifest.json" : "project.json"] = Encoding.UTF8.GetBytes(Json.Write(p.Manifest)) };
         string CanonicalResource(string resource) {
             if (!resource.StartsWith(p.Manifest.Id + ":") || !TextureAssets.TryGet(p, resource, out _)) return resource;
@@ -46,16 +48,16 @@ public static class ProjectStore
             if (path.StartsWith("textures/gui/") && !path[13..].Contains('/')) return TextureAssets.Resource(p.Manifest.Id, path[13..]);
             return resource;
         }
-        foreach (var original in p.Screens) {
-            var ui = Json.Clone(original);
+        foreach (var original in p.Screens.Where(s=>!pack || !s.IsComponent)) {
+            var ui = Json.Clone(original); if(pack)ui.ComponentInstances.Clear();
             if (!Validation.Id(ui.Id)) throw new InvalidDataException("Invalid UI ID");
-            foreach (var element in ui.Elements) { element.Texture = CanonicalResource(element.Texture); if(pack && element.RowTemplate.Length>0) {element.RowElements=Json.Clone(RowTemplates.Resolve(p,element));foreach(var rowElement in element.RowElements)rowElement.Texture=CanonicalResource(rowElement.Texture);} }
+            foreach (var element in ui.Elements) { element.Texture = CanonicalResource(element.Texture); if(pack && element.RowTemplate.Length>0) {element.RowTemplateWidth=p.Screens.First(s=>s.Id==element.RowTemplate).Size.Width;element.RowElements=Json.Clone(RowTemplates.Resolve(p,element));foreach(var rowElement in element.RowElements)rowElement.Texture=CanonicalResource(rowElement.Texture);} }
             foreach (var ev in ui.Events.Values.Concat(ui.Elements.SelectMany(e => e.Events.Values)))
                 foreach (var action in ev.Client.Actions.Concat(ev.Server.Actions))
                     if (action.Type == "change_texture") action.Value = CanonicalResource(action.Value);
             files.Add("ui/" + ui.Id + ".json", Encoding.UTF8.GetBytes(Json.Write(ui)));
         }
-        var usedScripts = p.Screens.SelectMany(s => s.Events.Values.Concat(s.Elements.SelectMany(e => e.Events.Values)))
+        var usedScripts = p.Screens.Where(s=>!s.IsComponent).SelectMany(s => s.Events.Values.Concat(s.Elements.SelectMany(e => e.Events.Values)))
             .SelectMany(e => new[] { e.Client.Script, e.Server.Script }).Where(s => s.Length > 0).ToHashSet(StringComparer.Ordinal);
         foreach (var (path, code) in p.Scripts) { if (pack && !usedScripts.Contains(path)) continue; if (!path.StartsWith("scripts/") || !path.EndsWith(".js") || Encoding.UTF8.GetByteCount(code) > 65536) throw new InvalidDataException("Invalid script"); files.Add(Validation.SafePath(path), Encoding.UTF8.GetBytes(code)); }
         foreach (var (path, data) in TextureAssets.CanonicalAssets(p)) { if (data.Length > MaxEntry) throw new InvalidDataException("Invalid asset"); files.Add(path, data); }
@@ -64,12 +66,15 @@ public static class ProjectStore
     }
     public static void Export(Project project, string destination)
     {
-        if (project.Screens.SelectMany(s => s.Events.Values.Concat(s.Elements.SelectMany(e => e.Events.Values))).Any(e => e.Server.Script.Length > 0 && e.Server.ScriptEngine == "kubejs")) throw new InvalidDataException("This project has KubeJS scripts. Use Export for KubeJS.");
+        if (project.Screens.Where(s=>!s.IsComponent).SelectMany(s => s.Events.Values.Concat(s.Elements.SelectMany(e => e.Events.Values))).Any(e => e.Server.Script.Length > 0 && e.Server.ScriptEngine == "kubejs")) throw new InvalidDataException("This project has KubeJS scripts. Use Export for KubeJS.");
         var errors = Validation.Check(project); if (errors.Count != 0) throw new InvalidDataException(string.Join("\n", errors));
         var files = Files(project, true);
-        using (var output = new FileStream(destination + ".tmp", FileMode.Create, FileAccess.Write))
-        using (var archive = new ZipArchive(output, ZipArchiveMode.Create)) foreach (var (name, bytes) in files) { using var stream = archive.CreateEntry(name, CompressionLevel.Optimal).Open(); stream.Write(bytes); }
-        File.Move(destination + ".tmp", destination, true);
+        string temporary = destination + ".tmp";
+        try {
+            using (var output = new FileStream(temporary, FileMode.Create, FileAccess.Write))
+            using (var archive = new ZipArchive(output, ZipArchiveMode.Create)) foreach (var (name, bytes) in files) { using var stream = archive.CreateEntry(name, Level(name)).Open(); stream.Write(bytes); }
+            File.Move(temporary, destination, true);
+        } finally { if (File.Exists(temporary)) File.Delete(temporary); }
     }
     public static Project Load(string path)
     {
@@ -110,4 +115,5 @@ public static class ProjectStore
         return full;
     }
 }
+
 

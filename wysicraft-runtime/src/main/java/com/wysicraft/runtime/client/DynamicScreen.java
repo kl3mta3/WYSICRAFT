@@ -19,7 +19,7 @@ import java.util.*;
 import java.util.function.BiConsumer;
 
 public final class DynamicScreen extends Screen {
-    public final Ui ui; public final String session; public boolean remoteClosing;
+    private final Ui design; public final Ui ui; public final String session; public boolean remoteClosing;
     public final Map<String,String> state;
     public static final Map<String,BiConsumer<DynamicScreen,Action>> ACTIONS = new HashMap<>();
     private final Map<String,Integer> scroll = new HashMap<>();
@@ -43,12 +43,17 @@ public final class DynamicScreen extends Screen {
         mouseClicked((x(e)+e.bounds.width-6-bw*(secondary?0.5:1.5))*viewScale,(y(e)+index*e.rowHeight-listScroll(e.id)+8)*viewScale,0);
     }
     Element focused, hovered, dragging; private int originX, originY; private boolean opened, closed; private long lastHover;
-    public DynamicScreen(Ui ui, String session) { super(Component.literal(ui.title)); this.ui = ui; this.session = session; state = new HashMap<>(ui.variables); }
+    public DynamicScreen(Ui ui, String session) { super(Component.literal(ui.title)); this.ui = ui; this.design=ui.copy(); this.session = session; state = new HashMap<>(ui.variables); }
     public Font font() { return font; }
     public String bind(String text) { return Expressions.bind(text,state); }
     public static void registerAction(String id, BiConsumer<DynamicScreen,Action> action) { if (ACTIONS.putIfAbsent(id,action) != null) throw new IllegalArgumentException("Duplicate action"); com.wysicraft.runtime.pack.PackRepository.CLIENT_ACTIONS.add(id); }
     @Override protected void init() {
-        viewScale=ui.fitToScreen?Math.min(1f,Math.min(width/(ui.size.width+12f),height/(ui.size.height+(ui.showFrame?32f:12f)))):1f;
+        com.wysicraft.runtime.model.ResponsiveLayout.apply(ui,design,width-12,height-(ui.showFrame?32:12));itemRows.clear();
+        for(var e:ui.elements) {
+            int max=e.type.equals("item_list")?Math.max(0,rows(e).size()*e.rowHeight-(int)e.bounds.height):e.type.equals("scroll_panel")?Math.max(0,(int)(ui.elements.stream().filter(c->c.parent.equals(e.id)).mapToDouble(c->c.bounds.y+c.bounds.height).max().orElse(e.bounds.y+e.bounds.height)-e.bounds.y-e.bounds.height)):0;
+            if(scroll.containsKey(e.id))scroll.put(e.id,Math.clamp(scroll.get(e.id),0,max));
+        }
+        viewScale=ui.responsive?1f:ui.fitToScreen?Math.min(1f,Math.min(width/(ui.size.width+12f),height/(ui.size.height+(ui.showFrame?32f:12f)))):1f;
         originX=(int)((width/viewScale-ui.size.width)/2); originY=(int)((height/viewScale-ui.size.height+(ui.showFrame?14:0))/2);
         if (!opened) { opened = true; fire(null,"open",""); }
     }
@@ -187,6 +192,7 @@ public final class DynamicScreen extends Screen {
         }
     }
 }
+
 
 
 

@@ -19,7 +19,7 @@ public partial class MainWindow
     {
         if (minecraftTest != null) { minecraftTest.Activate(); return; }
         SaveScriptText();
-        minecraftTest = new MinecraftTestWindow(this, () => { SaveScriptText(); return Json.Clone(project); }, RuntimeJar);
+        minecraftTest = new MinecraftTestWindow(this, () => { SaveScriptText(); return Json.CloneProject(project); }, RuntimeJar);
         minecraftTest.Closed += (_, _) => minecraftTest = null;
         minecraftTest.Show();
     }
@@ -176,7 +176,7 @@ internal sealed class MinecraftTestWindow : Window
     }
     void Deploy(Project project) {
         if (Running && projectId != project.Manifest.Id) throw new InvalidOperationException("Stop before switching projects. This avoids retaining another project's scripts in the running server.");
-        project = Json.Clone(project);
+        project = Json.CloneProject(project);
         var unsupported = project.Screens.SelectMany(s => s.Events.Select(e => (Location: s.Id + "." + e.Key, Event: e.Value))
             .Concat(s.Elements.SelectMany(element => element.Events.Select(e => (Location: s.Id + "." + element.Id + "." + e.Key, Event: e.Value)))))
             .SelectMany(e => new[] { (e.Location, Side: "Client", Handler: e.Event.Client), (e.Location, Side: "Server", Handler: e.Event.Server) })

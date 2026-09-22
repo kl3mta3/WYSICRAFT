@@ -17,7 +17,7 @@ public partial class MainWindow
     bool syncingLayers;
     void VerifyAppearanceTools()
     {
-        var original = Json.Clone(project);
+        var original = Json.CloneProject(project);
         try
         {
             var button = ui.Elements.First(e => e.Type == "button");
@@ -80,7 +80,7 @@ public partial class MainWindow
         Layers.SelectionChanged += (_, _) =>
         {
             if (syncingLayers) return;
-            selected.Clear(); foreach (ListBoxItem item in Layers.SelectedItems) foreach(string id in LayerRowIds((string)item.Tag)) selected.Add(id);
+            selected.Clear(); foreach (ListBoxItem item in Layers.SelectedItems) foreach(string id in LayerRowIds((string)item.Tag)) if(ui.Elements.Any(e=>e.Id==id&&InIsolation(e)))selected.Add(id);
             Draw(); RefreshInspector();
         };
         InitializeLayerDragging();
@@ -92,6 +92,9 @@ public partial class MainWindow
     ContextMenu ElementMenu(Element element)
     {
         var menu = new ContextMenu();
+        var group=CanvasGroup(element);
+        if(group.Length>0){var isolate=new MenuItem {Header="Isolate group"};isolate.Click+=(_,_)=>IsolateGroup(group);menu.Items.Add(isolate);}
+        if(isolatedGroup.Length>0){var exit=new MenuItem {Header="Exit isolation"};exit.Click+=(_,_)=>ExitIsolation();menu.Items.Add(exit);}
         // Select the right-clicked element when executing an action. Keeping its
         // visual alive while the menu opens avoids losing the WPF placement target.
         void SelectTarget() { if (!selected.Contains(element.Id)) { selected.Clear(); selected.Add(element.Id); } }
@@ -99,12 +102,14 @@ public partial class MainWindow
             ("Select", () => { selected.Clear(); selected.Add(element.Id); Draw(); RefreshInspector(); }),
             ("Group selected", GroupSelected), ("Ungroup", UngroupSelected), ("Duplicate", Duplicate), ("Bring forward", () => MoveLayers(1)), ("Send backward", () => MoveLayers(-1)),
             (element.Visible ? "Hide" : "Show", () => { Change(); element.Visible = !element.Visible; Draw(); RefreshInspector(); }),
+            (element.Locked ? "Unlock" : "Lock", () => { Change(); element.Locked = !element.Locked; if (element.Locked) selected.Remove(element.Id); Draw(); RefreshInspector(); }),
             ("Delete", Delete) })
         {
-            var item = new MenuItem { Header = label };
+            var item = new MenuItem { Header = label, InputGestureText = ContextShortcut(label) };
             item.Click += (_, _) => Guard(() => { SelectTarget(); action(); }); menu.Items.Add(item);
         }
         menu.Items.Add(ArrangeMenu(SelectTarget));
+        AddPanelMenuItems(menu, element);
         return menu;
     }
     void MoveLayers(int direction)
@@ -155,7 +160,7 @@ public partial class MainWindow
         var buttons = new StackPanel { Orientation = Orientation.Horizontal };
         var browse = new Button { Content = "Choose PNG…" }; browse.Click += (_, _) => Guard(() => AssignSkin(e));
         var clear = new Button { Content = "Use color only" }; clear.Click += (_, _) => { Change(); e.Texture = ""; Draw(); RefreshInspector(); };
-        buttons.Children.Add(browse); buttons.Children.Add(clear); Properties.Children.Add(buttons);
+        var assets=new Button {Content="Assets"};assets.Click+=(_,_)=>{RefreshAssetBrowser();ShowDock("assets");};buttons.Children.Add(browse); buttons.Children.Add(assets); buttons.Children.Add(clear); Properties.Children.Add(buttons);
         Properties.Children.Add(new TextBlock { Text = "An assigned image replaces the fill. Transparent pixels reveal the canvas.", Margin = new Thickness(4), TextWrapping = TextWrapping.Wrap, Foreground = Brushes.LightGray });
         Field(Properties, "Opacity", e, "Opacity");
         Heading(Properties, "Corners");
@@ -203,7 +208,7 @@ public partial class MainWindow
         string stem = System.Text.RegularExpressions.Regex.Replace(Path.GetFileNameWithoutExtension(dialog.FileName).ToLowerInvariant(), "[^a-z0-9_-]", "_");
         string name = stem + ".png"; int suffix = 1;
         while (Wysicraft.Core.TextureAssets.TryGet(project, Wysicraft.Core.TextureAssets.Resource(project.Manifest.Id, name, element.Type), out var existing) && !existing.SequenceEqual(bytes)) name = stem + "_" + suffix++ + ".png";
-        Change(); project.Assets[Wysicraft.Core.TextureAssets.Path(project.Manifest.Id, name, element.Type)] = bytes; element.Texture = Wysicraft.Core.TextureAssets.Resource(project.Manifest.Id, name, element.Type); Draw(); RefreshInspector();
+        Change(); project.Assets[Wysicraft.Core.TextureAssets.Path(project.Manifest.Id, name, element.Type)] = bytes; element.Texture = Wysicraft.Core.TextureAssets.Resource(project.Manifest.Id, name, element.Type); RefreshAssetBrowser(); Draw(); RefreshInspector();
     }
     static readonly System.Runtime.CompilerServices.ConditionalWeakTable<byte[], BitmapImage> TexturePreviews = new();
     static BitmapImage DecodeTexture(byte[] bytes) => TexturePreviews.GetValue(bytes, DecodePreview);
@@ -275,3 +280,12 @@ public partial class MainWindow
 
 
 
+public partial class MainWindow
+{
+    // Shortcut text for right-click menu entries that match a command.
+    string ContextShortcut(string label) => label switch {
+        "Group selected"=>DisplayGesture(GestureFor("edit.group")),"Ungroup"=>DisplayGesture(GestureFor("edit.ungroup")),
+        "Duplicate"=>DisplayGesture(GestureFor("edit.duplicate")),"Delete"=>DisplayGesture(GestureFor("edit.delete")),
+        "Bring forward"=>DisplayGesture(GestureFor("edit.bringForward")),"Send backward"=>DisplayGesture(GestureFor("edit.sendBackward")),
+        "Lock" or "Unlock"=>DisplayGesture(GestureFor("edit.toggleLock")),_=>""};
+}

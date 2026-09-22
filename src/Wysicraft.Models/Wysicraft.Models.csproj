@@ -1,1 +1,19 @@
-<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFramework>net8.0</TargetFramework></PropertyGroup></Project>
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><TargetFramework>net8.0</TargetFramework></PropertyGroup>
+  <!-- The runtime version is written once, in wysicraft-runtime/build.gradle; the editor reads it at build time. -->
+  <PropertyGroup>
+    <RuntimeGradleFile>$(MSBuildThisFileDirectory)../../wysicraft-runtime/build.gradle</RuntimeGradleFile>
+    <RuntimeVersionFile>$(BaseIntermediateOutputPath)RuntimeInfo.g.cs</RuntimeVersionFile>
+  </PropertyGroup>
+  <Target Name="GenerateRuntimeVersion" BeforeTargets="CoreCompile" Inputs="$(RuntimeGradleFile)" Outputs="$(RuntimeVersionFile)">
+    <PropertyGroup>
+      <WysicraftRuntimeVersion>$([System.Text.RegularExpressions.Regex]::Match($([System.IO.File]::ReadAllText('$(RuntimeGradleFile)')), "(?m)(?&lt;=^version = ')\d+\.\d+\.\d+(?=')"))</WysicraftRuntimeVersion>
+    </PropertyGroup>
+    <Error Condition="'$(WysicraftRuntimeVersion)' == ''" Text="Could not read the runtime version from $(RuntimeGradleFile)" />
+    <WriteLinesToFile File="$(RuntimeVersionFile)" Overwrite="true" WriteOnlyWhenDifferent="true"
+      Lines="namespace Wysicraft.Models%3B;public static class RuntimeInfo { public const string Version = &quot;$(WysicraftRuntimeVersion)&quot;%3B }" />
+  </Target>
+  <Target Name="IncludeRuntimeVersion" BeforeTargets="CoreCompile" AfterTargets="GenerateRuntimeVersion">
+    <ItemGroup><Compile Include="$(RuntimeVersionFile)" /></ItemGroup>
+  </Target>
+</Project>

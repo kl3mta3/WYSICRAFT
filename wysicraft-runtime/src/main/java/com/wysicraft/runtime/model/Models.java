@@ -13,6 +13,7 @@ public final class Models {
         public List<String> ui = new ArrayList<>(), dependencies = new ArrayList<>();
     }
     public static class Ui {
+        public boolean responsive = false;
         public boolean showFrame = false, dimBackground = false, fitToScreen = true;
         public int schemaVersion = 1;
         public String id = "", title = "";
@@ -28,6 +29,8 @@ public final class Models {
     public static class Element {
         public String rowTemplate = "", rowAction = "";
         public List<Element> rowElements = new ArrayList<>();
+        public String horizontalAnchor="left", verticalAnchor="top";
+        public double minWidth=1,minHeight=1,rowTemplateWidth;
         public int rowHeight = 30;
         public String primaryLabel = "", secondaryLabel = "";
         public boolean showItemId = true;
@@ -49,4 +52,5 @@ public final class Models {
     public static class Handler { public int permissionLevel, cooldownTicks = 4; public List<Action> actions = new ArrayList<>(); public String script = "", function = ""; }
     public static class Action { public String type = "", target = "", value = ""; }
 }
+
 

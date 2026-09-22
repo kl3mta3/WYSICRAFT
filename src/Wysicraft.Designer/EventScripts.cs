@@ -97,7 +97,7 @@ public partial class MainWindow
             try
             {
                 CheckFunction(function.Text); Jint.Engine.PrepareScript(editor.Text);
-                var staging = Json.Clone(project); var screen = staging.Screens.First(s => s.Id == ui.Id);
+                var staging = Json.CloneProject(project); var screen = staging.Screens.First(s => s.Id == ui.Id);
                 staging.Scripts[draft.Path] = editor.Text;
                 var target = EnsureEventHandler(element == "" ? screen.Events : screen.Elements.First(e => e.Id == element).Events, eventName, server);
                 target.Script = draft.Path; target.Function = function.Text; target.ScriptEngine = (string)engine.SelectedItem;
@@ -122,14 +122,14 @@ public partial class MainWindow
     void TestEvent(string element, string eventName, Project? staging = null, Window? owner = null)
     {
         SaveScriptText();
-        var preview = new PreviewSession(this, staging ?? Json.Clone(project), ui.Id);
+        var preview = new PreviewSession(this, staging ?? Json.CloneProject(project), ui.Id);
         preview.Window.Owner = owner ?? this;
         preview.Window.Loaded += (_, _) => { if (element.Length > 0 || eventName != "open") preview.TriggerTest(element, eventName); };
         preview.Window.ShowDialog();
     }
     internal async Task VerifyEventScriptsAsync(string capture)
     {
-        var original = Json.Clone(project); string originalUi = ui.Id;
+        var original = Json.CloneProject(project); string originalUi = ui.Id;
         PreviewSession? preview = null;
         try
         {
@@ -138,7 +138,7 @@ public partial class MainWindow
             SaveEventScript(element.Events, "click", false, draft.Path, draft.Function, draft.Source);
             var handler = element.Events["click"].Client;
             if (handler.Script != draft.Path || handler.Function != draft.Function || project.Scripts[draft.Path] != draft.Source) throw new InvalidOperationException("Save & Assign did not attach the new script");
-            preview = new PreviewSession(this, Json.Clone(project), ui.Id); preview.Window.Show();
+            preview = new PreviewSession(this, Json.CloneProject(project), ui.Id); preview.Window.Show();
             await preview.VerifyEventTestAsync(element.Id, "click", element.Id + ".click fired!");
             preview.Window.UpdateLayout();
             var bitmap = new System.Windows.Media.Imaging.RenderTargetBitmap((int)preview.Window.ActualWidth, (int)preview.Window.ActualHeight, 96, 96, PixelFormats.Pbgra32);

@@ -15,6 +15,16 @@ public final class PackRepository {
     public static final Set<String> CONTROLS = new HashSet<>(List.of("button","label","image","textbox","checkbox","slider","progress","dropdown","panel","scroll_panel","item","item_list","texture_region"));
     public static final Set<String> CLIENT_ACTIONS = new HashSet<>(List.of("set_text","set_visible","set_enabled","set_value","open_ui","close_ui","play_sound","set_variable","toggle_variable","message","change_texture"));
     public static final Set<String> SERVER_ACTIONS = new HashSet<>(List.of("command","message","set_variable","toggle_variable","open_ui","close_ui","server_function","player_inventory"));
+    /** This runtime's version, stamped from build.gradle at build time; packs may require at most this version. */
+    public static final String RUNTIME_VERSION = runtimeVersion();
+    private static String runtimeVersion() {
+        try (var in = PackRepository.class.getResourceAsStream("/wysicraft-runtime.properties")) {
+            var properties = new java.util.Properties(); if (in != null) properties.load(in);
+            String version = properties.getProperty("version", "");
+            if (!version.matches("\\d+\\.\\d+\\.\\d+")) throw new IllegalStateException("Missing or unexpanded runtime version: " + version);
+            return version;
+        } catch (IOException ex) { throw new java.io.UncheckedIOException(ex); }
+    }
     public record Loaded(Manifest manifest, Map<String,Ui> screens, Map<String,byte[]> files) {}
     private final Map<String,Loaded> byUi = new LinkedHashMap<>();
     public Map<String,Loaded> all() { return Collections.unmodifiableMap(byUi); }
@@ -89,7 +99,7 @@ public final class PackRepository {
         }
         Manifest manifest = Models.JSON.fromJson(text(files, files.containsKey("manifest.json") ? "manifest.json" : "project.json"), Manifest.class);
         require(manifest != null && manifest.schemaVersion == 1, "Unsupported manifest schema");
-        require(id(manifest.id), "Invalid pack ID"); compareVersion(manifest.version,"1.0.0"); require(compareVersion(manifest.runtimeVersion,"1.4.0") <= 0, "Runtime version too old");
+        require(id(manifest.id), "Invalid pack ID"); compareVersion(manifest.version,"1.0.0"); require(compareVersion(manifest.runtimeVersion,RUNTIME_VERSION) <= 0, "Pack requires runtime " + manifest.runtimeVersion + "; this is " + RUNTIME_VERSION);
         require(manifest.ui != null && !manifest.ui.isEmpty() && manifest.ui.size() <= 128, "Invalid UI list");
         Map<String,Ui> screens = new LinkedHashMap<>();
         for (String id : manifest.ui) { require(id(id), "Invalid UI ID"); Ui ui = Models.JSON.fromJson(text(files, "ui/" + id + ".json"), Ui.class); require(ui != null && id.equals(ui.id), "UI ID mismatch"); require(screens.putIfAbsent(id, ui) == null, "Duplicate UI ID"); }
@@ -128,6 +138,7 @@ public final class PackRepository {
             Expressions.evaluate(e.visibleIf, ui.variables); Expressions.evaluate(e.enabledIf, ui.variables);
             com.wysicraft.runtime.model.ContainerTree.ancestors(ui,e);
             if (!e.texture.isEmpty()) { require(resource(e.texture), location + "invalid resource"); if (e.texture.startsWith(manifest.id + ":")) require(textureFile(new Loaded(manifest,Map.of(),files),e.texture) != null, location + "missing texture"); }
+            require(Set.of("left","center","right","stretch").contains(e.horizontalAnchor) && Set.of("top","center","bottom","stretch").contains(e.verticalAnchor) && Double.isFinite(e.minWidth+e.minHeight+e.rowTemplateWidth) && e.minWidth>=1 && e.minWidth<=4096 && e.minHeight>=1 && e.minHeight<=4096 && e.rowTemplateWidth>=0 && e.rowTemplateWidth<=4096,location+"invalid anchors or minimum size");
             require(e.rowHeight>=24 && e.rowHeight<=128 && e.primaryLabel.length()<=24 && e.secondaryLabel.length()<=24, location+"invalid row template");
             if (e.type.equals("item")) require(resource(e.item) || template && e.item.equals("${row.item}"), location + "invalid item"); if(e.type.equals("item_list")) com.wysicraft.runtime.model.ItemRows.parse(e.value);
             if(!e.rowElements.isEmpty()) { require(e.type.equals("item_list"),"Row template requires Item List"); com.wysicraft.runtime.model.RowTemplates.check(e); var row=com.wysicraft.runtime.model.RowTemplates.layout(e); validate(row,manifest,screens,files,true); }

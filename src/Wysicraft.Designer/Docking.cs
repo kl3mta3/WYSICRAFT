@@ -10,7 +10,8 @@ public partial class MainWindow
     readonly Dictionary<string,object> dockContents = new();
     string defaultDockLayout = "";
     bool DockSmoke => Environment.GetCommandLineArgs().Any(a=>a.StartsWith("--smoke"));
-    static string DockLayoutPath => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"WYSICRAFT","workspace-layout.xml");
+    // Versioned so the 1.2 default arrangement (shorter Output, wider left panels) applies once.
+    static string DockLayoutPath => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"WYSICRAFT","workspace-layout-2.xml");
 
     void InitializeDocking()
     {
@@ -38,6 +39,11 @@ public partial class MainWindow
             else e.Cancel=true;
         };
         using var reader=new StringReader(xml); serializer.Deserialize(reader);
+        // Add new panels to older layouts without discarding the user's arrangement.
+        foreach(var (id,title) in new[]{("assets","Assets"),("items","Items"),("components","Components")})if(!Workspace.Layout.Descendents().OfType<LayoutContent>().Any(p=>p.ContentId==id)) {
+            var pane=Workspace.Layout.Descendents().OfType<LayoutAnchorablePane>().First();
+            pane.Children.Add(new LayoutAnchorable {ContentId=id,Title=title,Content=dockContents[id],CanClose=false});
+        }
         foreach(var item in Workspace.Layout.Descendents().OfType<LayoutContent>()) {
             item.FloatingWidth=Math.Clamp(item.FloatingWidth>0?item.FloatingWidth:500,200,Math.Max(200,SystemParameters.VirtualScreenWidth));
             item.FloatingHeight=Math.Clamp(item.FloatingHeight>0?item.FloatingHeight:400,150,Math.Max(150,SystemParameters.VirtualScreenHeight));
@@ -55,6 +61,8 @@ public partial class MainWindow
         item.IsActive=true; item.IsSelected=true;
     }
     void ResetDockLayout() => RestoreDockLayout(defaultDockLayout);
+    // AvalonDock opens floating windows asynchronously; tests wait for that before moving on or closing.
+    void FlushUi()=>Dispatcher.Invoke(()=>{},System.Windows.Threading.DispatcherPriority.ApplicationIdle);
 
     internal void VerifyDocking(string output)
     {
@@ -62,17 +70,17 @@ public partial class MainWindow
         ScriptEditor.Text="// unsaved docking smoke";
         foreach(string id in new[]{"toolbox","layers","properties","events","output","scripts"}) {
             var pane=Workspace.Layout.Descendents().OfType<LayoutAnchorable>().First(p=>p.ContentId==id);
-            pane.Float(); UpdateLayout();
+            pane.Float(); FlushUi(); UpdateLayout();
             if(!pane.IsFloating) throw new InvalidOperationException(id+" did not float");
-            pane.Dock(); pane.Hide(); ShowDock(id);
+            pane.Dock(); FlushUi(); pane.Hide(); ShowDock(id); FlushUi();
             if(pane.IsHidden) throw new InvalidOperationException(id+" did not reopen");
         }
-        var scripts=Workspace.Layout.Descendents().OfType<LayoutAnchorable>().First(p=>p.ContentId=="scripts"); scripts.Float();
+        var scripts=Workspace.Layout.Descendents().OfType<LayoutAnchorable>().First(p=>p.ContentId=="scripts"); scripts.Float(); FlushUi();
         using var saved=new StringWriter(); new XmlLayoutSerializer(Workspace).Serialize(saved);
-        ResetDockLayout(); RestoreDockLayout(saved.ToString()); UpdateLayout();
+        ResetDockLayout(); FlushUi(); RestoreDockLayout(saved.ToString()); FlushUi(); UpdateLayout();
         if(ScriptEditor.Text!="// unsaved docking smoke" || Workspace.Layout.Descendents().OfType<LayoutContent>().Any(p=>!ReferenceEquals(p.Content,dockContents[p.ContentId]))) throw new InvalidOperationException("Restoring layout lost editor content");
         if(!Workspace.Layout.Descendents().OfType<LayoutAnchorable>().First(p=>p.ContentId=="scripts").IsFloating) throw new InvalidOperationException("Floating layout was not restored");
-        ResetDockLayout(); ScriptEditor.Text=original; dirty=false;
+        ResetDockLayout(); FlushUi(); ScriptEditor.Text=original; dirty=false;
         UpdateLayout();
         var bitmap=new System.Windows.Media.Imaging.RenderTargetBitmap((int)ActualWidth,(int)ActualHeight,96,96,System.Windows.Media.PixelFormats.Pbgra32); bitmap.Render(this);
         var encoder=new System.Windows.Media.Imaging.PngBitmapEncoder(); encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bitmap)); using(var file=File.Create(output+".png")) encoder.Save(file);

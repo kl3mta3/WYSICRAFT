@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><OutputType>WinExe</OutputType><Version>1.1.0-dev.1</Version><TargetFramework>net8.0-windows</TargetFramework><UseWPF>true</UseWPF></PropertyGroup><ItemGroup><ProjectReference Include="../Wysicraft.Packaging/Wysicraft.Packaging.csproj" /></ItemGroup><ItemGroup>
+<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><OutputType>WinExe</OutputType><Version>1.2.0</Version><TargetFramework>net8.0-windows</TargetFramework><UseWPF>true</UseWPF></PropertyGroup><ItemGroup><ProjectReference Include="../Wysicraft.Packaging/Wysicraft.Packaging.csproj" /></ItemGroup><ItemGroup>
   <PackageReference Include="Dirkster.AvalonDock" Version="4.72.1" />
   <PackageReference Include="Dirkster.AvalonDock.Themes.VS2013" Version="4.72.1" />
   <PackageReference Include="Jint" Version="4.16.2" />

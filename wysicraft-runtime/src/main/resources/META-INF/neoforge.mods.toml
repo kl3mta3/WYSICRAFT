@@ -3,7 +3,7 @@ loaderVersion="[4,)"
 license="MIT"
 [[mods]]
 modId="wysicraft"
-version="1.4.0"
+version="${version}"
 displayName="WYSICRAFT Runtime"
 description='''Portable, visual Minecraft user interfaces with server-authoritative actions.'''
 [[dependencies.wysicraft]]

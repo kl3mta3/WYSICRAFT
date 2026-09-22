@@ -6,7 +6,7 @@ namespace Wysicraft.Packaging;
 
 public static class Distribution
 {
-    public const string RuntimeVersion="1.4.0";
+    public const string RuntimeVersion=RuntimeInfo.Version;
     public static byte[] ProjectJar(Project source, bool clientOnly=false)
     {
         var project=Json.Clone(source);
@@ -40,7 +40,7 @@ public static class Distribution
         foreach(var file in packFiles.Where(f=>f.Key.StartsWith("assets/"))) files[file.Key]=file.Value;
         return Zip(files);
     }
-    public static bool UsesKube(Project p) => p.Screens.SelectMany(s=>s.Events.Values.Concat(s.Elements.SelectMany(e=>e.Events.Values))).Any(e=>e.Server.Script.Length>0 && e.Server.ScriptEngine=="kubejs");
+    public static bool UsesKube(Project p) => p.Screens.Where(s=>!s.IsComponent).SelectMany(s=>s.Events.Values.Concat(s.Elements.SelectMany(e=>e.Events.Values))).Any(e=>e.Server.Script.Length>0 && e.Server.ScriptEngine=="kubejs");
     public static byte[] BundledJar(Project project, string runtimeJar, bool clientOnly = false)
     {
         using var runtime = ZipFile.OpenRead(runtimeJar);

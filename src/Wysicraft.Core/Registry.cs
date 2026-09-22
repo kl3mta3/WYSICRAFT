@@ -25,11 +25,16 @@ public static class Registry
     }
     public static void Register(string type, string name, string[] properties, string[] events) => Controls.Add(type, new(type, name, properties, [.. events, "hover", "mouse_enter", "mouse_leave"]));
 }
-public sealed class History<T>(Func<T> capture, Action<T> restore)
+public sealed class History<T>(Func<T> capture, Action<T> restore, Func<T,T>? clone = null, int limit = 200)
 {
-    readonly Stack<T> undo = new(), redo = new();
-    public void Checkpoint() { undo.Push(Json.Clone(capture())); redo.Clear(); }
-    public void Undo() { if (undo.Count == 0) return; redo.Push(Json.Clone(capture())); restore(undo.Pop()); }
-    public void Redo() { if (redo.Count == 0) return; undo.Push(Json.Clone(capture())); restore(redo.Pop()); }
+    // Oldest entries are dropped past `limit` so long sessions don't grow without bound.
+    readonly LinkedList<T> undo = new(), redo = new();
+    readonly Func<T,T> copy = clone ?? Json.Clone;
+    public int UndoCount => undo.Count;
+    public void Checkpoint() { Push(undo, copy(capture())); redo.Clear(); }
+    public void Undo() { if (undo.Count == 0) return; Push(redo, copy(capture())); restore(Pop(undo)); }
+    public void Redo() { if (redo.Count == 0) return; Push(undo, copy(capture())); restore(Pop(redo)); }
     public void Clear() { undo.Clear(); redo.Clear(); }
+    void Push(LinkedList<T> stack, T value) { stack.AddLast(value); while (stack.Count > Math.Max(1, limit)) stack.RemoveFirst(); }
+    static T Pop(LinkedList<T> stack) { var value = stack.Last!.Value; stack.RemoveLast(); return value; }
 }

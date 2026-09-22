@@ -15,7 +15,7 @@ public partial class MainWindow
     void Preview()
     {
         SaveScriptText(); if (Validation.Check(project).Count > 0) { Validate(); return; }
-        activePreview?.Window.Close(); activePreview=new PreviewSession(this,Json.Clone(project),ui.Id);previewRevision=Revision();activePreview.Window.Show();
+        activePreview?.Window.Close(); activePreview=new PreviewSession(this,Json.CloneProject(project),ui.Id);previewRevision=Revision();activePreview.Window.Show();
     }
     sealed class PreviewSession
     {
@@ -53,6 +53,7 @@ public partial class MainWindow
         readonly Dictionary<string, (FrameworkElement Control, Element Display)> controls = [];
         readonly Dictionary<string, double> scrollOffsets = [];
         readonly Queue<(string Element, string Event, string Value)> pending = new();
+        int? viewportWidth, viewportHeight;
         bool syncing, busy, closed; int navigationDepth;
         Task? closing;
         public Window Window { get; }
@@ -65,6 +66,11 @@ public partial class MainWindow
             var reset = new Button { Content = "Reset preview" }; reset.Click += (_, _) => { if (busy) return; Open(initialUi); }; tools.Children.Add(reset);
             var clear = new Button { Content = "Clear console" }; clear.Click += (_, _) => output.Clear(); tools.Children.Add(clear);
             tools.Children.Add(new TextBlock { Text = "Click controls to test • Server operations are simulated", Margin = new Thickness(12, 6, 4, 6), VerticalAlignment = VerticalAlignment.Center });
+            var sizes = new StackPanel { Orientation=Orientation.Horizontal }; DockPanel.SetDock(sizes,Dock.Top);layout.Children.Add(sizes);
+            sizes.Children.Add(new TextBlock {Text="Layout size (GUI pixels)",Margin=new Thickness(6)});
+            var vw=new TextBox {Text=screen.Size.Width.ToString(),Width=60};var vh=new TextBox {Text=screen.Size.Height.ToString(),Width=60};sizes.Children.Add(vw);sizes.Children.Add(vh);
+            var resize=new Button {Content="Apply size"};sizes.Children.Add(resize);
+            resize.Click+=(_,_)=>{if(busy)return;if(!int.TryParse(vw.Text,out int w)||!int.TryParse(vh.Text,out int h)||w<16||h<16||w>4096||h>4096){Print("LAYOUT","Use sizes from 16 to 4096.");return;}viewportWidth=w;viewportHeight=h;Render();Print("LAYOUT",screen.Responsive?$"Responsive layout: {w} × {h}":"This screen uses a fixed layout. Enable Responsive layout in screen settings to resize controls.");};
             var bottom = new Grid { Height = 235 }; bottom.ColumnDefinitions.Add(new ColumnDefinition()); bottom.ColumnDefinitions.Add(new ColumnDefinition()); DockPanel.SetDock(bottom, Dock.Bottom); layout.Children.Add(bottom);
             var consolePanel = new DockPanel(); consolePanel.Children.Add(Header("CONSOLE • clicks, actions and script output")); consolePanel.Children.Add(output); bottom.Children.Add(consolePanel);
             var scriptPanel = new DockPanel(); Grid.SetColumn(scriptPanel, 1); bottom.Children.Add(scriptPanel); scriptPanel.Children.Add(Header("JAVASCRIPT • preview scratchpad"));
@@ -101,6 +107,8 @@ public partial class MainWindow
         }
         void Render()
         {
+            var design=project.Screens.First(s=>s.Id==screen.Id);
+            ResponsiveLayout.Apply(screen,design,viewportWidth??design.Size.Width,viewportHeight??design.Size.Height);
             syncing = true; controls.Clear(); canvas.Children.Clear(); canvas.Width = screen.Size.Width * Zoom; canvas.Height = screen.Size.Height * Zoom;
             foreach (var element in screen.Elements)
             {
@@ -276,7 +284,7 @@ public partial class MainWindow
     }
     internal async Task VerifyPreviewAsync(string capture)
     {
-        var preview = new PreviewSession(this, Json.Clone(project), ui.Id);
+        var preview = new PreviewSession(this, Json.CloneProject(project), ui.Id);
         try
         {
             preview.Window.Show(); await preview.VerifyClickAsync(); preview.Window.UpdateLayout();

@@ -20,6 +20,8 @@ public final class WysicraftApi {
     }
     public static void closeProject(ServerPlayer player, String projectId) { requireServerThread(player); Wysicraft.SERVER.closeProject(player, projectId); }
     public static void registerProjectCommand(String projectId, String command) { com.wysicraft.runtime.ProjectCommands.associate(projectId,command); }
+    // Always the player's own permissions, even with runCommandsAsServer: script-built commands can include
+    // client-supplied text (ctx.value), so they must never gain server authority. Built-in command actions are fixed pack text.
     public static int runCommand(ServerPlayer player, String command) throws com.mojang.brigadier.exceptions.CommandSyntaxException {
         requireServerThread(player);
         if (command.length() > 2048 || command.contains("\n") || command.contains("\r")) throw new IllegalArgumentException("Invalid command");

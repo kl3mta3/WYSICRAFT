@@ -21,8 +21,8 @@ public static class Validation
         if (!Id(m.Id)) Add("manifest", "", "Invalid pack ID");
         if (m.SchemaVersion != 1) Add("manifest", "", "Unsupported schema version");
         if (!Version(m.Version) || !Version(m.RuntimeVersion)) Add("manifest", "", "Versions must be major.minor.patch");
-        else if (System.Version.Parse(m.RuntimeVersion) > new System.Version(1,4,0)) Add("manifest", "", "Minimum runtime exceeds 1.4.0");
-        if (!project.Screens.Any(s => s.Id == m.DefaultUi)) Add("manifest", "", "Default UI does not exist");
+        else if (System.Version.Parse(m.RuntimeVersion) > System.Version.Parse(RuntimeInfo.Version)) Add("manifest", "", "Minimum runtime exceeds " + RuntimeInfo.Version);
+        if (!project.Screens.Any(s => s.Id == m.DefaultUi && !s.IsComponent)) Add("manifest", "", "Default UI does not exist");
         HashSet<string> uis = []; var templates=project.Screens.SelectMany(s=>s.Elements).Where(e=>e.RowTemplate.Length>0).Select(e=>e.RowTemplate).ToHashSet();
         foreach (var ui in project.Screens)
         {
@@ -30,12 +30,21 @@ public static class Validation
             if (ui.SchemaVersion != 1) Add(ui.Id, "", "Unsupported schema version");
             if (ui.Size.Width is < 16 or > 4096 || ui.Size.Height is < 16 or > 4096 || ui.Elements.Count > 512) Add(ui.Id, "", "Canvas or element limit exceeded");
             try { foreach(var group in ui.GroupParents.Keys.Concat(ui.Elements.Select(e=>e.LayerGroup))) { foreach(var part in LayerGroups.Path(ui,group))if(part.Length>64 || part.Any(char.IsControl))throw new InvalidDataException("Invalid group name"); } } catch(Exception ex) { Add(ui.Id,"",ex.Message); }
+            if(ui.IsComponent && ui.Events.Count>0)Add(ui.Id,"","Component sources use control events, not screen open/close events");
+            if(ui.IsComponent && ui.ComponentInstances.Count>0)Add(ui.Id,"","Linked components cannot be nested");
+            var instanceRoots=new HashSet<string>();
+            foreach(var instance in ui.ComponentInstances) {
+                if(!instanceRoots.Add(instance.Root) || !ui.Elements.Any(e=>e.Id==instance.Root && e.Type=="panel"))Add(ui.Id,instance.Root,"Invalid or missing component root; detach the link or undo deletion");
+                if(instance.Ids.Count>512 || instance.Ids.Values.Distinct().Count()!=instance.Ids.Count || instance.Ids.Values.Any(id=>!Id(id)||id==instance.Root))Add(ui.Id,instance.Root,"Invalid component ID mapping");
+                if(!project.Screens.Any(s=>s.Id==instance.Source && s.IsComponent))Add(ui.Id,instance.Root,"Missing component source");
+            }
             HashSet<string> ids = [];
             foreach (var e in ui.Elements)
             {
                 if (!Id(e.Id) || !ids.Add(e.Id)) Add(ui.Id, e.Id, "Invalid or duplicate element ID");
                 if (!Registry.Controls.ContainsKey(e.Type)) Add(ui.Id, e.Id, "Unknown control type: " + e.Type);
                 if (!double.IsFinite(e.Bounds.X + e.Bounds.Y + e.Bounds.Width + e.Bounds.Height) || e.Bounds.Width < 1 || e.Bounds.Height < 1 || e.Bounds.Width > 4096 || e.Bounds.Height > 4096) Add(ui.Id, e.Id, "Invalid bounds");
+                if(e.HorizontalAnchor is not ("left" or "center" or "right" or "stretch") || e.VerticalAnchor is not ("top" or "center" or "bottom" or "stretch") || !double.IsFinite(e.MinWidth+e.MinHeight+e.RowTemplateWidth) || e.MinWidth is <1 or >4096 || e.MinHeight is <1 or >4096 || e.RowTemplateWidth is <0 or >4096) Add(ui.Id,e.Id,"Invalid anchors or minimum size");
                 if (e.Opacity < 0 || e.Opacity > 1 || e.FontScale <= 0 || e.FontScale > 8 || e.Maximum <= e.Minimum) Add(ui.Id, e.Id, "Invalid appearance or value range");
                 if (!Resource(e.Font) || !double.IsFinite(e.CornerRadius) || e.CornerRadius < 0 || e.CornerRadius > 128) Add(ui.Id, e.Id, "Invalid font resource or corner radius (0–128)");
                 if (!double.IsFinite(e.BorderWidth + e.ShadowOpacity + e.ShadowOffsetX + e.ShadowOffsetY + e.ShadowBlur) || e.BorderWidth is < 0 or > 32 || e.ShadowOpacity is < 0 or > 1 || Math.Abs(e.ShadowOffsetX) > 64 || Math.Abs(e.ShadowOffsetY) > 64 || e.ShadowBlur is < 0 or > 16) Add(ui.Id, e.Id, "Invalid border/shadow settings");
@@ -45,6 +54,7 @@ public static class Validation
                 if (e.Texture != "") { if (!Resource(e.Texture)) Add(ui.Id, e.Id, "Invalid texture resource"); else if (e.Texture.StartsWith(m.Id + ":") && !TextureAssets.TryGet(project, e.Texture, out _)) Add(ui.Id, e.Id, "Missing texture asset"); }
                 if (e.Type == "item" && !(templates.Contains(ui.Id) && e.Item=="${row.item}") && !Resource(e.Item)) Add(ui.Id, e.Id, "Invalid item identifier");
                 if(e.RowHeight<24 || e.RowHeight>128 || e.PrimaryLabel.Length>24 || e.SecondaryLabel.Length>24) Add(ui.Id,e.Id,"Row height must be 24–128; button labels at most 24 characters");
+                if(e.RowTemplate.Length>0 && project.Screens.Any(s=>s.Id==e.RowTemplate && s.IsComponent))Add(ui.Id,e.Id,"Use a row template screen rather than a component source");
                 if(e.Type=="item_list") try { ItemRows.Parse(e.Value); } catch(Exception ex) { Add(ui.Id,e.Id,ex.Message); }
                 if(e.Type=="item_list" && (e.RowTemplate.Length>0 || e.RowElements.Count>0)) try { RowTemplates.Check(RowTemplates.Resolve(project,e)); } catch(Exception ex) { Add(ui.Id,e.Id,ex.Message); }
                 CheckEvents(ui, e.Id, e.Events, Registry.Controls.GetValueOrDefault(e.Type)?.Events ?? []);
@@ -69,7 +79,7 @@ public static class Validation
                     {
                         if (!(server ? Registry.ServerActions : Registry.ClientActions).Contains(a.Type)) Add(ui.Id, id, "Unknown " + side + " action: " + a.Type);
                         if (new[] { "set_text", "set_visible", "set_enabled", "set_value", "change_texture" }.Contains(a.Type) && !ui.Elements.Any(e => e.Id == a.Target)) Add(ui.Id, id, "Missing action target: " + a.Target);
-                        if (a.Type == "open_ui" && !project.Screens.Any(s => s.Id == a.Value)) Add(ui.Id, id, "Missing destination UI: " + a.Value);
+                        if (a.Type == "open_ui" && !project.Screens.Any(s => s.Id == a.Value && !s.IsComponent)) Add(ui.Id, id, "Missing destination UI: " + a.Value);
                         if (a.Type is "set_variable" or "toggle_variable" && !Variable(a.Target)) Add(ui.Id, id, "Invalid variable name");
                         if(a.Type=="player_inventory" && !ui.Elements.Any(e=>e.Id==a.Target && e.Type=="item_list")) Add(ui.Id,id,"Player inventory action requires an Item List target");
                         if (a.Value.Length > 4096 || a.Target.Length > 256) Add(ui.Id, id, "Action exceeds string limit");

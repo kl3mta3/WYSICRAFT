@@ -41,7 +41,7 @@ dotnet publish src/Wysicraft.Designer -c Release -r win-x64 --self-contained fal
 ## Getting started
 
 1. Launch Designer. Choose **File → New Project**, enter `Airship Controls`, and set pack ID `airship_controls` in Project Settings.
-2. Use **Screen / Variables** to rename `main` to `cockpit`. The default UI follows the rename.
+2. Click **Screen settings** and change **Screen ID** from `main` to `cockpit` in Properties. The Main screen and links follow the rename.
 3. Drag a **Button** from the toolbox onto the canvas. Set its text to `START ENGINE`.
 4. Add a **Label** with ID `status`.
 5. Select the button, open **Events**, choose `click` and **Client**, and add a `set_text` action with Target `status` and Value `Starting...`.
@@ -51,7 +51,7 @@ dotnet publish src/Wysicraft.Designer -c Release -r win-x64 --self-contained fal
 
 Alternatively, open `samples/AirshipControls/project.json`. It includes START/STOP ENGINE, status and altitude labels, navigation and close controls. The ready-to-install archive is `samples/airship_controls.wysicraft`.
 
-The canvas supports dragging, **Shift-click or Ctrl-click multi-selection**, bottom-right resize handles, grid snapping, arrow movement, Shift+arrow movement, Delete, clipboard operations and undo/redo. **Ctrl+C / Ctrl+V** copy/paste the full selection, preserving styles and remapping references between copied elements. **Ctrl+X** cuts the selection. Shift-click in Layers selects a range. The inspector updates the canvas while valid values are typed. Options are separated with `|`; local variables use `name=value;name=value` in Screen / Variables.
+The canvas supports dragging, **Shift-click or Ctrl-click multi-selection**, resize handles on every corner and edge, grid snapping, arrow movement, Shift+arrow movement, Delete, clipboard operations and undo/redo. **Ctrl+C / Ctrl+V** copy/paste the full selection, preserving styles and remapping references between copied elements. **Ctrl+X** cuts the selection. Shift-click in Layers selects a range. The inspector updates the canvas while valid values are typed. Options are separated with `|`; local variables use `name=value;name=value` in Screen / Variables.
 
 ### Styling and layers
 
@@ -146,9 +146,9 @@ Appearance controls include full-bound label backgrounds, optional fills, border
 
 In **Screen settings** (the screen rename dialog), check **Main screen** and save. This replaces the previous main screen. Renaming a screen also updates built-in `open_ui` action references. Each loaded project's lowercase **Id** automatically supplies two commands:
 
-- `/airship_controls.open` opens that project's Main screen for the executing player.
-- `/airship_controls.close` closes that project's current interface for the executing player.
-- `/airship_controls.open <player>` and `/airship_controls.close <player>` target a player from a server/block script or console (permission level 2).
+- `/project_name.open` opens that project's Main screen for the executing player.
+- `/project_name.close` closes that project's current interface for the executing player.
+- `/project_name.open <player>` and `/project_name.close <player>` target a player from a server/block script or console (permission level 2).
 
 Use `/wysicraft reload` after replacing or adding packs. Existing aliases resolve the latest Main screen; newly loaded projects get aliases immediately. Removed project aliases reject calls until the command tree is rebuilt or the server restarts. Conflicting command names are logged and never replace another mod's command. Screen IDs still need to be unique across installed packs.
 

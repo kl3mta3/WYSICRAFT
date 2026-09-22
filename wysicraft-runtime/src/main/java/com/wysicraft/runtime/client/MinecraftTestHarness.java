@@ -20,7 +20,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public final class MinecraftTestHarness {
     private static final String WORLD = "WYSICRAFT Test";
     private static final boolean LOCAL_SERVER = "127.0.0.1:25579".equals(System.getProperty("wysicraft.localTestServer"));
-    private static boolean started;
+    private static boolean started, catalogWritten;
     private static long nextPoll;
     private static final AtomicBoolean pending = new AtomicBoolean();
     private static String lastRequest = "", lastResult = "", lastError = "";
@@ -147,6 +147,11 @@ public final class MinecraftTestHarness {
             state(session,true,commands,Map.of());return;
         }
         if (server == null || mc.player == null) { state(session,false,List.of(),Map.of()); return; }
+        if(!catalogWritten)try {
+            var items=new ArrayList<Map<String,String>>();
+            for(var item:net.minecraft.core.registries.BuiltInRegistries.ITEM)if(item!=net.minecraft.world.item.Items.AIR)items.add(Map.of("id",net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(item).toString(),"name",item.getDescription().getString()));
+            Files.writeString(root().resolve("items.tmp"),Models.JSON.toJson(items));Files.move(root().resolve("items.tmp"),root().resolve("items.json"),StandardCopyOption.REPLACE_EXISTING);catalogWritten=true;
+        }catch(Exception ex){Wysicraft.LOG.debug("Item catalog: {}",ex.toString());}
         UUID playerId = mc.player.getUUID();
         Request input = request;
         pending.set(true);

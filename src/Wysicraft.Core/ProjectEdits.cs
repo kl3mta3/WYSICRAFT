@@ -27,6 +27,12 @@ public static class ProjectEdits
             UiDefinition Screen() => project.Screens.SingleOrDefault(s => s.Id == edit.Screen) ?? throw new InvalidDataException("Screen not found: " + edit.Screen);
             switch (edit.Kind)
             {
+                case "add_component_template": ComponentStarters.Add(project,edit.Key);break;
+                case "create_component": Components.Capture(project,Screen(),edit.Data.GetProperty("ids").Deserialize<string[]>(Json.Options)!,edit.Key);break;
+                case "place_component": Components.Place(project,Screen(),edit.Key,edit.Data.GetProperty("x").GetDouble(),edit.Data.GetProperty("y").GetDouble());break;
+                case "update_component":
+                    var componentScreen=Screen();Components.Update(project,componentScreen,componentScreen.ComponentInstances.Single(i=>i.Root==edit.Element),!edit.Data.TryGetProperty("reset",out var reset)||!reset.GetBoolean());break;
+                case "detach_component": Components.Detach(Screen(),edit.Element);break;
                 case "arrange":
                     var layout=Screen();
                     var ids=edit.Data.GetProperty("ids").Deserialize<string[]>(Json.Options) ?? throw new InvalidDataException("Arrange requires selected element IDs");

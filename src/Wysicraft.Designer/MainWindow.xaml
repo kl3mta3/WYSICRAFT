@@ -12,13 +12,16 @@
       <ad:LayoutRoot>
         <ad:LayoutPanel Orientation="Vertical">
           <ad:LayoutPanel Orientation="Horizontal">
-            <ad:LayoutAnchorablePaneGroup Orientation="Vertical" DockWidth="200">
+            <ad:LayoutAnchorablePaneGroup Orientation="Vertical" DockWidth="260">
               <ad:LayoutAnchorablePane>
                 <ad:LayoutAnchorable ContentId="toolbox" Title="Toolbox" CanClose="False">
                   <DockPanel xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation">
                     <ListBox x:Name="Toolbox" BorderThickness="0" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" />
                   </DockPanel>
                 </ad:LayoutAnchorable>
+                <ad:LayoutAnchorable ContentId="assets" Title="Assets" CanClose="False"><DockPanel x:Name="AssetsHost" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" /></ad:LayoutAnchorable>
+                <ad:LayoutAnchorable ContentId="components" Title="Components" CanClose="False"><DockPanel x:Name="ComponentsHost" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" /></ad:LayoutAnchorable>
+                <ad:LayoutAnchorable ContentId="items" Title="Items" CanClose="False"><DockPanel x:Name="ItemsHost" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" /></ad:LayoutAnchorable>
               </ad:LayoutAnchorablePane>
               <ad:LayoutAnchorablePane>
                 <ad:LayoutAnchorable ContentId="layers" Title="Layers" CanClose="False">
@@ -38,11 +41,19 @@
                 <DockPanel xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation">
                   <StackPanel DockPanel.Dock="Top" Orientation="Horizontal">
                     <ComboBox x:Name="Screens" Width="230" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" />
-                    <Button x:Name="AddScreen" Content="+ Screen" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" />
-                    <Button x:Name="SelectScreen" Content="Select Screen" ToolTip="Select the screen itself and show its open/close event assignments" />
-                    <Button x:Name="ScreenSettings" Content="Screen / Variables" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" />
+                    <Button x:Name="AddScreen" Content="New screen" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" />
+                    <Button x:Name="DeleteScreenButton" Content="Delete screen" Click="DeleteScreenClick" />
+                    <Button x:Name="ScreenSettings" Content="Screen settings" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" />
                   </StackPanel>
-                  <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" Background="#16191E">
+                  <StackPanel x:Name="ComponentSourceBar" DockPanel.Dock="Top" Orientation="Horizontal" Visibility="Collapsed" Background="#354737">
+                    <TextBlock x:Name="ComponentSourceLabel" Margin="8,6" />
+                    <Button Content="Back to screen" Click="BackToScreen" />
+                  </StackPanel>
+                  <StackPanel x:Name="IsolationBar" DockPanel.Dock="Top" Orientation="Horizontal" Visibility="Collapsed" Background="#174D6A">
+                    <TextBlock x:Name="IsolationLabel" Margin="8,6" />
+                    <Button Content="Exit isolation" Click="ExitIsolationClick" />
+                  </StackPanel>
+                  <ScrollViewer x:Name="CanvasScroll" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" Background="#16191E" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
                     <Canvas x:Name="Surface" Margin="32" Background="#343A43" AllowDrop="True" Focusable="True" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" />
                   </ScrollViewer>
                 </DockPanel>
@@ -61,7 +72,7 @@
               </ad:LayoutAnchorable>
             </ad:LayoutAnchorablePane>
           </ad:LayoutPanel>
-          <ad:LayoutAnchorablePane DockHeight="225">
+          <ad:LayoutAnchorablePane DockHeight="130">
             <ad:LayoutAnchorable ContentId="output" Title="Output / Validation" CanClose="False">
               <ListBox x:Name="Output" FontFamily="Consolas" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" />
             </ad:LayoutAnchorable>

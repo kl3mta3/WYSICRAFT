@@ -17,7 +17,7 @@ public partial class MainWindow
         }
         if(element.Type!="item_list")return;
         Heading(Properties,"Reusable row template");
-        var pick=new ComboBox {ItemsSource=new[]{""}.Concat(project.Screens.Where(s=>s!=ui).Select(s=>s.Id)).ToArray(),SelectedItem=element.RowTemplate,Margin=new Thickness(4)};
+        var pick=new ComboBox {ItemsSource=new[]{""}.Concat(project.Screens.Where(s=>s!=ui && !s.IsComponent).Select(s=>s.Id)).ToArray(),SelectedItem=element.RowTemplate,Margin=new Thickness(4)};
         pick.SelectionChanged+=(_,_)=>{Change();element.RowTemplate=pick.SelectedItem as string ?? "";Draw();};Properties.Children.Add(pick);
         var tools=new StackPanel {Orientation=Orientation.Horizontal};Properties.Children.Add(tools);
         var create=new Button {Content="New row template"};var edit=new Button {Content="Edit template"};tools.Children.Add(create);tools.Children.Add(edit);
@@ -27,11 +27,11 @@ public partial class MainWindow
             Change();element.RowTemplate=id;element.RowHeight=48;
             int width=Math.Max(180,(int)element.Bounds.Width);
             var template=new UiDefinition {Id=id,Title="Item row template",Size=new(){Width=width,Height=48},Elements=[
-                new Element {Id="row_panel",Type="panel",Bounds=new(){Width=width,Height=46},Background="#1B2E36",CornerRadius=3},
+                new Element {Id="row_panel",Type="panel",HorizontalAnchor="stretch",Bounds=new(){Width=width,Height=46},Background="#1B2E36",CornerRadius=3},
                 new Element {Id="icon",Type="item",Parent="row_panel",Item="${row.item}",FillEnabled=false,Bounds=new(){X=4,Y=8,Width=24,Height=24}},
-                new Element {Id="name",Type="label",Parent="row_panel",Text="${row.name}",FillEnabled=false,Bounds=new(){X=32,Y=2,Width=width-36,Height=20}},
+                new Element {Id="name",Type="label",HorizontalAnchor="stretch",Parent="row_panel",Text="${row.name}",FillEnabled=false,Bounds=new(){X=32,Y=2,Width=width-36,Height=20}},
                 new Element {Id="amount",Type="label",Parent="row_panel",Text="×${row.count}",FillEnabled=false,Bounds=new(){X=32,Y=24,Width=60,Height=18}},
-                new Element {Id="primary",Type="button",Parent="row_panel",Text="Add 1",RowAction="item_primary",Bounds=new(){X=width-80,Y=24,Width=76,Height=18},Background="#426649"}
+                new Element {Id="primary",Type="button",HorizontalAnchor="right",Parent="row_panel",Text="Add 1",RowAction="item_primary",Bounds=new(){X=width-80,Y=24,Width=76,Height=18},Background="#426649"}
             ]};project.Screens.Add(template);ui=template;selected.Clear();RefreshAll();
         });
         edit.Click+=(_,_)=>Guard(()=>{ui=project.Screens.FirstOrDefault(s=>s.Id==element.RowTemplate) ?? throw new InvalidOperationException("Select a template first");selected.Clear();RefreshAll();});
@@ -39,7 +39,10 @@ public partial class MainWindow
     }
     Canvas RenderTemplateRow(Element list,ItemRow row,int index,Action<string>? fire,IReadOnlyDictionary<string,string>? state)
     {
-        state ??= ui.Variables;var elements=RowTemplates.Resolve(project,list);var template=new UiDefinition {Elements=elements};
+        state ??= ui.Variables;var elements=Json.Clone(RowTemplates.Resolve(project,list));
+        var original=project.Screens.FirstOrDefault(s=>s.Id==list.RowTemplate);
+        var template=new UiDefinition {Elements=elements,Size=new(){Width=original?.Size.Width ?? (int)(list.RowTemplateWidth>0?list.RowTemplateWidth:list.Bounds.Width),Height=list.RowHeight}};
+        var bounds=ResponsiveLayout.Resolve(template,list.Bounds.Width,list.RowHeight);foreach(var child in elements)child.Bounds=bounds[child.Id];
         var canvas=new Canvas {Width=list.Bounds.Width*Zoom,Height=list.RowHeight*Zoom,ClipToBounds=true,Background=Brushes.Transparent};
         foreach(var source in elements) {
             var ancestors=ContainerTree.Ancestors(template,source).ToArray();if(!source.Visible || !Expressions.Evaluate(source.VisibleIf,state) || ancestors.Any(p=>!p.Visible || !Expressions.Evaluate(p.VisibleIf,state)))continue;
@@ -57,7 +60,7 @@ public partial class MainWindow
     }
     internal async Task VerifyNesting(string output)
     {
-        var fixture=Json.Clone(project);
+        var fixture=Json.CloneProject(project);
         VerifyLayerEditing(output+".layers.txt");
         selected.Clear();selected.UnionWith(ui.Elements.Where(e=>e.LayerGroup=="Controls").Select(e=>e.Id));SetLayerGroup("Outer");
         if(ui.GroupParents.GetValueOrDefault("Controls")!="Outer")throw new Exception("Nested group creation failed");
@@ -68,7 +71,7 @@ public partial class MainWindow
         var row=RenderTemplateRow(list,ItemRows.Parse(list.Value)[1],1,e=>fired=e,ui.Variables);
         var button=row.Children.OfType<Button>().Single();button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         if(fired!="item_primary" || list.Text!="1")throw new Exception("Row button did not route index to owning list");
-        var preview=new PreviewSession(this,Json.Clone(project),ui.Id);preview.Window.Show();await preview.WaitReady();
+        var preview=new PreviewSession(this,Json.CloneProject(project),ui.Id);preview.Window.Show();await preview.WaitReady();
         preview.CaptureCanvas(output+".png");preview.Window.Close();
         dirty=false;System.IO.File.WriteAllText(output,"PASS: nested group editing/duplication, row button/index and preview rendering");
     }

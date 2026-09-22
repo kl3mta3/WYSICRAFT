@@ -35,7 +35,7 @@ public partial class MainWindow
                     if(screen.Length==0) screen=ui.Id;
                     if(!project.Screens.Any(s=>s.Id==screen)) throw new InvalidDataException("Screen not found");
                     var errors=Wysicraft.Core.Validation.Check(project);if(errors.Count>0)throw new InvalidDataException(string.Join("\n",errors));
-                    activePreview=new PreviewSession(this,Json.Clone(project),screen);previewRevision=Revision();activePreview.Window.Show();
+                    activePreview=new PreviewSession(this,Json.CloneProject(project),screen);previewRevision=Revision();activePreview.Window.Show();
                     await activePreview.WaitReady();return activePreview.Snapshot();
                 case "preview_close":
                     if(activePreview!=null) await activePreview.CloseAsync();activePreview=null;return Json.Write(new{closed=true});

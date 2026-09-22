@@ -2,7 +2,7 @@ plugins {
     id 'java-library'
     id 'net.neoforged.moddev' version '2.0.146'
 }
-version = '1.4.0'
+version = '1.5.0'
 group = 'com.wysicraft.runtime'
 base { archivesName = 'wysicraft' }
 java.toolchain.languageVersion = JavaLanguageVersion.of(21)
@@ -46,6 +46,9 @@ test { useJUnitPlatform() }
 
 tasks.withType(JavaCompile).configureEach { options.encoding = 'UTF-8' }
 tasks.named('processResources') {
+    // build.gradle's version is the single source: stamped into the mod metadata and read by PackRepository.
+    inputs.property 'version', project.version
+    filesMatching(['META-INF/neoforge.mods.toml', 'wysicraft-runtime.properties']) { expand(version: project.version) }
     from('../LICENSE') { into 'META-INF/licenses'; rename { 'WYSICRAFT-LICENSE.txt' } }
     from('../docs/third-party') {
         include 'Graal*', 'SDK-LICENSE.txt', 'sdk-LICENSE.txt', 'truffle-LICENSE.txt', 'regex-LICENSE.txt'

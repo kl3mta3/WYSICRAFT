@@ -15,12 +15,13 @@ public final class ServerRuntime {
     public final PackRepository packs = new PackRepository();
     private final Map<UUID,Session> sessions = new HashMap<>();
     private final Map<UUID,Map<String,Long>> cooldowns = new HashMap<>();
+    private final ScriptBudget scriptBudget = new ScriptBudget();
     private int depth;
     private static final class Session {
         final String ui, token = UUID.randomUUID().toString(); final Map<String,String> state; final Ui definition; long tick; int count;
         Session(Ui ui) { this.ui = ui.id; definition = ui.copy(); state = new HashMap<>(ui.variables); }
     }
-    public void forget(UUID player) { sessions.remove(player); cooldowns.remove(player); }
+    public void forget(UUID player) { sessions.remove(player); cooldowns.remove(player); scriptBudget.forget(player); }
     public void openRelative(ServerPlayer player, String id) {
         Session current=sessions.get(player.getUUID());
         if (!id.contains(":") && current!=null) id=current.ui.substring(0,current.ui.indexOf(':')+1)+id;
@@ -162,6 +163,14 @@ public final class ServerRuntime {
                 default -> { var fn = WysicraftApi.SERVER_ACTIONS.get(action.type); if (fn == null) throw new IllegalArgumentException("Unknown server action"); fn.accept(new WysicraftApi.ServerContext(player,session.state),action); }
             }
         }
+        if (handler.script.isEmpty()) return;
+        long tick = player.getServer().getTickCount();
+        if (!scriptBudget.tryStart(player.getUUID(),tick)) {
+            if (scriptBudget.shouldWarn(player.getUUID(),tick)) Wysicraft.LOG.warn("Server scripts for {} are throttled: too much script time in a short period ({})",player.getGameProfile().getName(),session.ui);
+            return;
+        }
+        long started = System.nanoTime();
+        try {
         Scripts.execute(Scripts.Side.SERVER,packs.pack(session.ui),handler,new Scripts.Context() {
             public String getVariable(String name) { return session.state.getOrDefault(name,""); }
             public void setVariable(String name,String value) { if (!PackRepository.variable(name) || value.length() > 4096) throw new IllegalArgumentException("Invalid variable"); session.state.put(name,value); }
@@ -190,6 +199,7 @@ public final class ServerRuntime {
                 }
             }
         }, message -> Wysicraft.LOG.warn("Script: {} / {}: {}",session.ui,session.state.getOrDefault("event_location","screen event"),message));
+        } finally { scriptBudget.charge(player.getUUID(),System.nanoTime()-started); }
     }
 }
 

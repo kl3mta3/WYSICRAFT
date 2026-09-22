@@ -32,7 +32,7 @@ public partial class MainWindow
     long mcpRequests;
     void AddMcpButton()
     {
-        mcpButton = new Button { Content = "Start MCP server" };
+        mcpButton = new Button(); SetMcpButton(false);
         mcpButton.Click += (_,_) => ShowMcpPanel(); Toolbar.Children.Add(mcpButton);
         Closed += async (_,_) => await StopMcp();
     }
@@ -96,7 +96,7 @@ public partial class MainWindow
             mcpHost=host;
             await host.StartAsync();
             mcpUrl=host.Urls.Single()+"/mcp";
-            mcpButton.Content="MCP running • Connection";
+            SetMcpButton(true);
             Log("Local MCP server started at "+mcpUrl);
         } catch { mcpHost=null; if(host!=null) await host.DisposeAsync(); throw; }
         finally { mcpStarting=false; }
@@ -105,7 +105,7 @@ public partial class MainWindow
     {
         var host=mcpHost; mcpHost=null;
         if(host==null) return;
-        mcpButton.Content="Start MCP server";
+        SetMcpButton(false);
         using var timeout=new CancellationTokenSource(TimeSpan.FromSeconds(3));
         try { await host.StopAsync(timeout.Token); } catch(OperationCanceledException) { }
         await host.DisposeAsync();
@@ -135,8 +135,8 @@ public partial class MainWindow
             case "get_project": return Json.Write(new { revision=Revision(),project=new { project.Manifest,project.Screens,project.Scripts,assets=project.Assets.Select(p=>new { path=p.Key,bytes=p.Value.Length }) },activeScreen=ui.Id,selection=selected.ToArray(),dirty });
             case "get_schema": return Json.Write(new { controls=Registry.Controls.Values,clientActions=Registry.ClientActions,serverActions=Registry.ServerActions,
                 elementDefaults=new Wysicraft.Models.Element(),screenDefaults=new UiDefinition(),eventDefaults=new UiEvent(),
-                scriptApi=ApiSnippets, projectDefaults=new Manifest(), arrangeOperations=Enum.GetNames<ArrangeOperation>(), editKinds=new[]{"arrange","set_project","upsert_screen","delete_screen","upsert_element","delete_element","put_script","delete_script","delete_asset","set_event","set_main"},
-                instructions="Read get_project for revision. apply_edits uses a list of {kind,screen,element,key,source,data}. data recursively patches existing objects; arrays replace. put_script uses key=path and source=JS; set_event uses key=event name and data={client:{script,function,scriptEngine},server:{...}}. Omit element for screen events. set_main uses screen. arrange uses screen and data={ids:[element IDs],operation:one of arrangeOperations}; full groups and containers move as units. One batch is one Undo. IDs are not renamed. set_project patches manifest fields and remaps asset namespaces when the project ID changes; literal IDs inside scripts must be updated by the author. import_asset imports PNGs. Item List value is a JSON array of {item,count,name}; ui.setItems updates it. Nested groups use screen.groupParents (child group to parent group) and element.layerGroup. Nested panel parenting uses element.parent with absolute screen coordinates. Item List rowTemplate references a screen containing up to 64 display controls/nested panels. Row buttons use rowAction=item_click/item_primary/item_secondary, handled by the owning list events with the row index. Bind row text/item/value using ${row.item}, ${row.name}, ${row.count}, ${row.index}. rowElements is compiled at export; edit the referenced screen instead." });
+                scriptApi=ApiSnippets, projectDefaults=new Manifest(), arrangeOperations=Enum.GetNames<ArrangeOperation>(), componentStarters=ComponentStarters.All, editKinds=new[]{"add_component_template","create_component","place_component","update_component","detach_component","arrange","set_project","upsert_screen","delete_screen","upsert_element","delete_element","put_script","delete_script","delete_asset","set_event","set_main"},
+                instructions="add_component_template uses key=one of componentStarters IDs and creates an editable source copy with a unique ID. Components: create_component uses screen, key=new source ID, data={ids:[selected IDs]}; place_component uses screen, key=source ID, data={x,y}; update_component uses screen, element=instance root ID, data={reset:false}; detach_component uses screen, element=root ID. Edit source screens through upsert_element then explicitly update instances. Read get_project for revision. apply_edits uses a list of {kind,screen,element,key,source,data}. data recursively patches existing objects; arrays replace. put_script uses key=path and source=JS; set_event uses key=event name and data={client:{script,function,scriptEngine},server:{...}}. Omit element for screen events. set_main uses screen. arrange uses screen and data={ids:[element IDs],operation:one of arrangeOperations}; full groups and containers move as units. One batch is one Undo. IDs are not renamed. set_project patches manifest fields and remaps asset namespaces when the project ID changes; literal IDs inside scripts must be updated by the author. import_asset imports PNGs. Item List value is a JSON array of {item,count,name}; ui.setItems updates it. Nested groups use screen.groupParents (child group to parent group) and element.layerGroup. Nested panel parenting uses element.parent with absolute screen coordinates. Item List rowTemplate references a screen containing up to 64 display controls/nested panels. Row buttons use rowAction=item_click/item_primary/item_secondary, handled by the owning list events with the row index. Bind row text/item/value using ${row.item}, ${row.name}, ${row.count}, ${row.index}. rowElements is compiled at export; edit the referenced screen instead." });
             case "validate_project": SaveScriptText(); return Json.Write(new { revision=Revision(),errors=McpValidation(project) });
             case "apply_edits":
                 CheckRevision(expected);
